@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TrayClockTooltip - NTP時刻を使う軽量タスクトレイ時計</title>
+  <meta name="description" content="TrayClockTooltipは、NTP時刻を利用できる軽量なタスクトレイ時計です。">
+  <link rel="alternate" hreflang="en" href="index.en.html">
+  <link rel="alternate" hreflang="ja" href="index.html">
+  <style>
+    :root {
+      --ink: #16202f;
+      --muted: #617087;
+      --paper: #f4f7fb;
+      --panel: #fff;
+      --line: #dfe6f1;
+      --blue: #0d4f9a;
+      --cyan: #7ee8ff;
+      --dark: #111827;
+      --green: #16a56b;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font-family: "Segoe UI", "Yu Gothic UI", Meiryo, sans-serif;
+      line-height: 1.65;
+      line-break: strict;
+      word-break: normal;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    .topbar {
+      position: fixed;
+      z-index: 10;
+      inset: 0 0 auto;
+      height: 62px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 clamp(20px, 5vw, 70px);
+      color: #fff;
+      background: rgba(10, 18, 32, .72);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(255, 255, 255, .14);
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 800;
+    }
+
+    .brand img {
+      width: 30px;
+      height: 30px;
+    }
+
+    .nav {
+      display: flex;
+      gap: 20px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, .8);
+    }
+
+    .nav a:hover {
+      color: #fff;
+    }
+
+    .hero {
+      min-height: 92vh;
+      position: relative;
+      display: flex;
+      align-items: center;
+      overflow: hidden;
+      padding: 112px clamp(20px, 6vw, 76px) 96px;
+      color: #fff;
+      background: #101724;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(10, 18, 32, .92), rgba(10, 18, 32, .66) 42%, rgba(10, 18, 32, .06) 72%),
+        linear-gradient(180deg, rgba(10, 18, 32, .16), rgba(10, 18, 32, .42));
+      z-index: 1;
+    }
+
+    .hero-screenshot {
+      position: absolute;
+      right: clamp(18px, 5vw, 72px);
+      bottom: 72px;
+      width: min(54vw, 860px);
+      min-width: 560px;
+      border: 1px solid rgba(255, 255, 255, .26);
+      box-shadow: 0 28px 90px rgba(0, 0, 0, .42);
+    }
+
+    .hero-copy {
+      position: relative;
+      z-index: 2;
+      max-width: 710px;
+      padding-top: 7vh;
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      color: var(--cyan);
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    h1 {
+      margin: 0;
+      max-width: 760px;
+      font-size: clamp(42px, 7vw, 84px);
+      line-height: 1;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .lead {
+      max-width: 640px;
+      margin: 24px 0 0;
+      color: rgba(255, 255, 255, .86);
+      font-size: clamp(17px, 2.2vw, 21px);
+      text-wrap: pretty;
+    }
+
+    .hero-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 34px;
+    }
+
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 44px;
+      padding: 10px 18px;
+      border: 1px solid rgba(255, 255, 255, .22);
+      border-radius: 6px;
+      font-weight: 800;
+    }
+
+    .button.primary {
+      background: #fff;
+      color: #0d336f;
+    }
+
+    .button.secondary {
+      color: #fff;
+      background: rgba(255, 255, 255, .08);
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 20px;
+      color: rgba(255, 255, 255, .74);
+      font-size: 13px;
+    }
+
+    .section {
+      padding: 86px clamp(20px, 6vw, 76px);
+      background: var(--paper);
+    }
+
+    .section.white {
+      background: #fff;
+    }
+
+    .inner {
+      max-width: 1120px;
+      margin: 0 auto;
+    }
+
+    .section-head {
+      max-width: 720px;
+      margin-bottom: 34px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: clamp(28px, 4vw, 44px);
+      line-height: 1.15;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .section-head p {
+      margin: 14px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+      text-wrap: pretty;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .feature {
+      min-height: 178px;
+      padding: 22px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+    }
+
+    .feature strong {
+      display: block;
+      margin-bottom: 9px;
+      font-size: 18px;
+    }
+
+    .feature p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      text-wrap: pretty;
+    }
+
+    .showcase {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 470px);
+      gap: 32px;
+      align-items: center;
+    }
+
+    .showcase-image {
+      width: 100%;
+      display: block;
+      border: 1px solid var(--line);
+      box-shadow: 0 22px 58px rgba(20, 35, 55, .18);
+    }
+
+    .checks {
+      margin: 22px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .checks li {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 10px;
+      padding: 11px 0;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+      text-wrap: pretty;
+    }
+
+    .checks span {
+      width: 22px;
+      height: 22px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #dff5ed;
+      color: var(--green);
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    .step-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      border-top: 1px solid var(--line);
+    }
+
+    .step-list li {
+      display: grid;
+      grid-template-columns: 42px 1fr;
+      gap: 14px;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .step-list span {
+      width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: #e7eef8;
+      color: var(--blue);
+      font-weight: 800;
+    }
+
+    .step-list p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      text-wrap: pretty;
+    }
+
+    .download-band {
+      background: var(--dark);
+      color: #fff;
+    }
+
+    .download {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 24px;
+      align-items: center;
+    }
+
+    .download p {
+      margin: 12px 0 0;
+      color: rgba(255, 255, 255, .76);
+      text-wrap: pretty;
+    }
+
+    .download-actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .hashes {
+      margin-top: 16px;
+      width: min(100%, 520px);
+      display: grid;
+      gap: 8px;
+      color: rgba(255, 255, 255, .72);
+      font-size: 12px;
+    }
+
+    .hashes code {
+      display: block;
+      margin-top: 2px;
+      overflow-wrap: anywhere;
+      color: rgba(255, 255, 255, .9);
+      font-family: Consolas, "Courier New", monospace;
+    }
+
+    .hashes a {
+      color: #9ee8ff;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
+    .nowrap {
+      white-space: nowrap;
+    }
+
+    .specs {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 24px;
+    }
+
+    .spec {
+      padding: 16px 18px;
+      border: 1px solid rgba(255, 255, 255, .18);
+      border-radius: 8px;
+      color: rgba(255, 255, 255, .82);
+      background: rgba(255, 255, 255, .06);
+    }
+
+    footer {
+      padding: 34px clamp(20px, 6vw, 76px);
+      color: var(--muted);
+      background: #fff;
+      font-size: 14px;
+    }
+
+    footer .inner {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 20px;
+      justify-content: space-between;
+    }
+
+    @media (max-width: 900px) {
+      .hero {
+        min-height: auto;
+        padding-top: 96px;
+      }
+
+      .hero-screenshot {
+        position: relative;
+        right: auto;
+        bottom: auto;
+        width: 100%;
+        min-width: 0;
+        margin-top: 42px;
+      }
+
+      .hero::before {
+        background:
+          linear-gradient(180deg, rgba(10, 18, 32, .84), rgba(10, 18, 32, .72)),
+          linear-gradient(90deg, rgba(10, 18, 32, .3), rgba(10, 18, 32, .3));
+      }
+
+      .hero {
+        display: block;
+      }
+
+      .features,
+      .steps,
+      .showcase,
+      .download,
+      .specs {
+        grid-template-columns: 1fr;
+      }
+
+      .download-actions {
+        justify-content: flex-start;
+      }
+
+      .hashes {
+        width: 100%;
+      }
+    }
+
+    @media (max-width: 720px) {
+      .nav {
+        display: none;
+      }
+
+      .feature {
+        min-height: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="TrayClockTooltip">
+      <img alt="" src="data:image/x-icon;base64,AAABAAEAICAQAAAAAADoAgAAFgAAACgAAAAgAAAAQAAAAAEABAAAAAAAgAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAACAAAAAgIAAgAAAAIAAgACAgAAAgICAAMDAwAAAAP8AAP8AAAD//wD/AAAA/wD/AP//AAD///8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHiP/4hwAAAAAAAAAAAAAHh2RERGeIAAAAAAAAAAAHhkRER0RERocAAAAAAAAAh0dERG90REdHgAAAAAAACGRvhERvdER/dGgAAAAAAHZESPdEb3RG+ERGgAAAAAd0REb/ZG90SPZERHcAAAAIZ2REf2RERG90REdoAAAAd2/3REREREREREaPZnAAAIZH/4ZERERERESP90SAAAaGZmj3ZmZmZmZm+GZmhwAHdmZmZmZmZmZmZ2ZmZmgACGZmZmZmZmZnj/+GZmZoAAhmeIdmZmZo///4d4h2aAAIZv//dmZmeP+HZm//928ACGZndmZmZo+GZmZmd2ZoAAhmZmZmZmaPhmZmZmZmaAAHdmZmdmZmj4ZmZnZmZncAAIZmaPdmZo+GZmb/dmaGAACGaP92ZmaPhmZmf/hmgAAAeG+GZmdmeHZnZmaPd3AAAAhmZmaPdmdmb4ZmZmgAAAAGhmZm+GZvdmj3ZmaHAAAAAHhmaPZmf3Zm/2ZncAAAAAAHhm+GZn+GZn92eAAAAAAAAHhmZmZvdmZmaHAAAAAAAAAGiGZmZmZmaIcAAAAAAAAAAAeIh2ZniIcAAAAAAAAAAAAAAHiIiHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD///////4////4D///wAH//4AA//8AAD/+AAAf/AAAH/gAAA/4AAAH8AAAB/AAAAfgAAAD4AAAA+AAAAPgAAAB4AAAA+AAAAPwAAAD8AAAB/AAAAf4AAAP+AAAD/wAAB/+AAA//wAAf/+AAP//4AP///wP/////////////////w==">
+      <span>TrayClockTooltip</span>
+    </a>
+    <nav class="nav" aria-label="ページ内リンク">
+      <a href="#features">特徴</a>
+      <a href="#usage">操作</a>
+      <a href="#download">ダウンロード</a>
+      <a href="index.en.html">English</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-label="TrayClockTooltip">
+      <img class="hero-screenshot" src="screenshot-sanitized.png" alt="TrayClockTooltipのフローティング時計とタスクトレイメニュー">
+      <div class="hero-copy">
+        <p class="eyebrow">Lightweight tray clock with NTP time</p>
+        <h1>TrayClockTooltip</h1>
+        <p class="lead"><span class="nowrap">NTP時刻</span>を利用できる軽量なタスクトレイ時計。標準ツールチップの代わりにフローティング時計を表示し、<span class="nowrap">Windows時計</span>とのずれを静かに知らせます。</p>
+        <div class="hero-actions">
+          <a class="button primary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.0.0/TrayClockTooltip-1.0.0.zip">Download ZIP</a>
+          <a class="button secondary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.0.0/TrayClockTooltip-source.zip">Source ZIP</a>
+        </div>
+        <div class="hero-meta">
+          <span><span class="nowrap">Windows 11</span> 64bit対応</span>
+          <span>軽量ネイティブ</span>
+          <span>.NET不要</span>
+          <span>EXE 約64KB</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="section white" id="features">
+      <div class="inner">
+        <div class="section-head">
+          <h2>小さく常駐して、必要なときだけ知らせる。</h2>
+          <p>時計アプリとしての存在感は控えめに。NTP取得、ずれ通知、時刻調整の導線だけをコンパクトにまとめています。</p>
+        </div>
+        <div class="features">
+          <div class="feature">
+            <strong>軽量に常駐</strong>
+            <p><span class="nowrap">.NET Framework</span>ランタイムに依存せず、メインウィンドウを出さずにタスクトレイへ常駐します。</p>
+          </div>
+          <div class="feature">
+            <strong>NTP基準の時計表示</strong>
+            <p><span class="nowrap">Windows Time</span>に設定されている<span class="nowrap">NTPサーバ</span>から時刻を取得し、アプリ内時計の表示に利用します。</p>
+          </div>
+          <div class="feature">
+            <strong>ツールチップ風プレビュー</strong>
+            <p>トレイアイコンにhoverすると、標準ツールチップの代わりに日時を中央表示したフローティング時計を表示します。</p>
+          </div>
+          <div class="feature">
+            <strong>Windowsモード追従</strong>
+            <p>フローティング時計と通知は、Windowsモードに合わせてライト/ダークの見た目を切り替えます。</p>
+          </div>
+          <div class="feature">
+            <strong>ずれ検知と通知</strong>
+            <p><span class="nowrap">Windows時計</span>と<span class="nowrap">NTP時刻</span>が1秒以上ずれている場合、独自通知とメニューで状態を知らせます。</p>
+          </div>
+          <div class="feature">
+            <strong>必要時だけUAC</strong>
+            <p>時刻調整が必要なときだけ<span class="nowrap">UAC</span>で確認します。アプリ本体は管理者権限で常駐しません。</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="inner showcase">
+        <div>
+          <div class="section-head">
+            <h2>ずれを検知したら、控えめに通知。</h2>
+          <p>通知は<span class="nowrap">Windowsモード</span>に合わせた独自ウィンドウです。クリックすると、必要に応じて時刻調整の確認へ進みます。</p>
+          </div>
+          <ul class="checks">
+            <li><span>✓</span><div>起動時、ログオン時、ロック解除時にNTP時刻を確認</div></li>
+            <li><span>✓</span><div>1秒以上のずれがあると通知とメニューで表示</div></li>
+            <li><span>✓</span><div>調整時はNTP時刻を再取得してからWindows時刻へ適用</div></li>
+          </ul>
+        </div>
+        <img class="showcase-image" src="screenshot-notification-sanitized.png" alt="NTP時刻との差を知らせる通知">
+      </div>
+    </section>
+
+    <section class="section white" id="usage">
+      <div class="inner steps">
+        <div class="section-head">
+          <h2>操作はトレイアイコンとフローティング時計だけ。</h2>
+          <p>普段はhoverで確認。必要なときだけ固定、移動、右クリックメニューを使います。</p>
+        </div>
+        <ol class="step-list">
+          <li>
+            <span>1</span>
+            <div><strong>トレイアイコンにhover</strong><p>フローティング時計をツールチップのように表示します。</p></div>
+          </li>
+          <li>
+            <span>2</span>
+            <div><strong>左クリックで固定</strong><p>時計を固定表示し、ドラッグで任意の場所へ移動できます。</p></div>
+          </li>
+          <li>
+            <span>3</span>
+            <div><strong>右クリックでメニュー</strong><p>時刻の再確認、時刻調整、終了を必要に応じて実行できます。</p></div>
+          </li>
+          <li>
+            <span>4</span>
+            <div><strong>スリープ復帰後も再確認</strong><p>ログオン/ロック解除時に時刻を再確認し、ずれを確認します。</p></div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section download-band" id="download">
+      <div class="inner download">
+        <div>
+          <h2>Download</h2>
+          <p><span class="nowrap">Release ZIP</span>には<span class="nowrap">EXE</span>、<span class="nowrap">README</span>、<span class="nowrap">LICENSE</span>を含めています。スタートアップ登録は含めていないため、必要に応じて追加してください。</p>
+          <div class="specs">
+            <div class="spec">対応環境: <span class="nowrap">Windows 11</span> 64bit</div>
+            <div class="spec">時刻調整時のみ<span class="nowrap">UAC</span></div>
+            <div class="spec"><span class="nowrap">NTP参照先</span>は<span class="nowrap">Windows Time</span>設定</div>
+            <div class="spec">無署名のため<span class="nowrap">SmartScreen</span>警告の可能性あり</div>
+            <div class="spec"><span class="nowrap">SHA256</span>で整合性確認</div>
+          </div>
+        </div>
+        <div>
+          <div class="download-actions">
+            <a class="button primary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.0.0/TrayClockTooltip-1.0.0.zip">Download ZIP</a>
+            <a class="button secondary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.0.0/TrayClockTooltip-source.zip">Source ZIP</a>
+          </div>
+          <div class="hashes" aria-label="SHA256">
+            <div>TrayClockTooltip-1.0.0.zip<code>bd68c2ef72d1f2981d90ed4eec53c2649b550707a32c069facd1fa4ceb236007</code></div>
+            <div>TrayClockTooltip-source.zip<code>3d264a2a25d3ace5064059bdcfeba3b89543de2fafd0a1e77429bd21092eefa0</code></div>
+            <a href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.0.0/SHA256SUMS.txt">SHA256SUMS.txt</a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="inner">
+      <span>TrayClockTooltip</span>
+      <span>Lightweight tray clock for Windows</span>
+    </div>
+  </footer>
+</body>
+</html>
+

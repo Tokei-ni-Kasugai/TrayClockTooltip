@@ -1,0 +1,12 @@
+# Build outputs
+/dist/
+/outputs/
+*.exe
+*.res.o
+
+# Temporary files
+*.tmp
+*.log
+Thumbs.db
+Desktop.ini
+
