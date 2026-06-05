@@ -135,7 +135,7 @@ Run date: 2026-06-04
 Scope:
 
 - No debug execution.
-- Build completed with `powershell -ExecutionPolicy Bypass -File .\build.ps1`.
+- Build completed with `powershell -ExecutionPolicy Bypass -File .\src\build.ps1`.
 - GUI operation, tray interaction, UAC operation, Windows setting changes, and environment-dependent visual checks were not performed by Codex.
 - Results below include only the latest re-run by build verification, source trace review, artifact checks, and README/test-case consistency review.
 - Previous Codex result entries were discarded before writing this section.
@@ -147,7 +147,7 @@ Scope:
 
 Notes:
 
-- The build succeeded and produced `outputs\TrayClockTooltip.exe`.
+- The build succeeded and produced `dist\TrayClockTooltip.exe`.
 - Floating menu refresh removal was rechecked: `ID_POPUP_REFRESH_NTP` is absent and only tray `NTP: refresh` remains.
 - Standard tooltip suppression was rechecked: tray registration omits `NIF_TIP`, and tooltip text is cleared only on `NIN_POPUPOPEN` / `NIN_POPUPCLOSE`.
 - Session NTP refresh was rechecked: `WTS_SESSION_LOGON` and `WTS_SESSION_UNLOCK` call `StartNtpLoad`, with duplicate query prevention handled by `g_ntpQueryInProgress`.

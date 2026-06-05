@@ -136,7 +136,7 @@
 実施範囲:
 
 - デバッグ実行なし。
-- `powershell -ExecutionPolicy Bypass -File .\build.ps1` によるビルド確認を実施。
+- `powershell -ExecutionPolicy Bypass -File .\src\build.ps1` によるビルド確認を実施。
 - GUI操作、トレイ実操作、UAC操作、Windows設定変更、環境依存の視認確認はCodex側では未実施。
 - 以下は、ビルド確認、ソーストレース、成果物確認、README/テストケース整合確認で再実施した最新結果のみ。
 - 過去のCodex実施結果は破棄し、この結果欄を新規作成。
@@ -148,7 +148,7 @@
 
 補足:
 
-- ビルドは成功し、`outputs\TrayClockTooltip.exe` を生成済み。
+- ビルドは成功し、`dist\TrayClockTooltip.exe` を生成済み。
 - フローティング側refresh削除を再確認: `ID_POPUP_REFRESH_NTP` は存在せず、`NTP: refresh` はトレイ側のみ。
 - 標準ツールチップ抑止を再確認: トレイ登録は `NIF_TIP` なし、`NIN_POPUPOPEN` / `NIN_POPUPCLOSE` 時のみtooltip文字列をクリア。
 - セッション通知によるNTP再取得を再確認: `WTS_SESSION_LOGON` / `WTS_SESSION_UNLOCK` で `StartNtpLoad` を呼び、`g_ntpQueryInProgress` で二重開始を抑止。

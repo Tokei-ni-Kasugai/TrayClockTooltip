@@ -1,5 +1,7 @@
 ﻿# TrayClockTooltip
 
+[English README](README.md)
+
 `TrayClockTooltip` は、NTP時刻を利用できる軽量なタスクトレイ時計です。
 
 .NET Framework ランタイムへの依存を避け、通知領域に常駐します。アプリ内の時計表示には、Windows Time に設定されているNTPサーバの時刻を利用できます。Windowsの時刻調整が必要な場合だけ、UACによる確認を求めます。

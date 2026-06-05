@@ -1,5 +1,7 @@
 ﻿# TrayClockTooltip
 
+[日本語 README](README.ja.md)
+
 `TrayClockTooltip` is a lightweight tray clock with NTP-based app time.
 
 It avoids the .NET Framework runtime dependency and stays resident only in the notification area. The app clock can use time from the NTP server configured in Windows Time. Windows time adjustment asks for UAC confirmation only when adjustment is requested.
