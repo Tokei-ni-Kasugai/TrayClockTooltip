@@ -16,6 +16,7 @@
 - セッションのログオン時とロック解除時にもNTP取得。スリープ復帰後の再確認に利用。
 - タスクトレイメニューから手動NTP再取得。
 - 手動NTP再取得でNTP取得に成功し、ずれが1秒未満の場合は成功通知を表示。
+- Startupメニューから、このユーザー向けの配置と自動起動登録を実行可能。
 - NTP取得に成功した場合、アプリ内時計は取得したNTP時刻を基準に表示。
 - NTP取得に失敗した場合、Windowsシステム時計を利用。
 - Windows時計とのずれが1秒以上の場合、独自通知を表示し、メニューから時刻調整を実行可能。
@@ -51,6 +52,10 @@
 - `NTP: refresh`: Windows Time に設定されているNTPサーバへ再問い合わせ。1秒以上のずれが検出されていない場合に表示。手動再取得に成功し、ずれが1秒未満の場合は成功通知を表示。
 - `Time: +...s (...)` / `Time: -...s (...)`: 1秒以上のずれが検出された場合、表示専用項目として表示。通常メニュー色で表示し、hoverしても選択色に変化しません。
 - `Adjust Windows time (admin)`: 1秒以上のずれが検出された場合、表示専用項目の下に表示。選択すると管理者権限での時刻調整を開始。
+- `Startup`:
+  - `Install for this user`: EXEを `%LOCALAPPDATA%\Programs\TrayClockTooltip\` にコピーし、コピー結果を検証し、そのコピーを自動起動に登録。現在のEXEを終了してインストール先EXEを起動。
+  - `Add this EXE to startup`: 現在実行しているEXEを自動起動に登録。
+  - `Remove startup registration`: このアプリの自動起動登録を削除。
 - `Exit`: アプリを終了。
 
 ### 高度な操作
@@ -69,7 +74,9 @@
 - 標準ツールチップ抑止はWindows側の挙動に依存します。環境によっては表示タイミングに差が出る可能性があります。
 - 隠れているインジケーター内での挙動、下以外のタスクバー位置、複数モニターや混在DPI環境は追加確認の余地があります。
 - 実行ファイルは未署名です。Windows SmartScreen やセキュリティソフトにより警告が表示される可能性があります。
-- スタートアップ登録機能はありません。必要な場合は、ユーザーが実行ファイルをスタートアップへ追加してください。
+- 自動起動登録は現在のユーザーのRunレジストリキーを利用します。管理者権限は不要です。
+- 現在の状態に対して変更がないStartupメニュー項目はグレーアウトします。
+- 別の場所にあるEXEからインストール済みEXEを更新する場合、起動中のインストール済みインスタンスと起動元パスの既存インスタンスへ通常終了を依頼してから置き換えます。
 
 ## Releaseパッケージ
 
@@ -83,6 +90,8 @@ Release用ZIPには以下を含めます。
 サイトとGitHub ReleasesにはRelease用ZIPとSource ZIPのSHA256を掲載します。
 
 GitHub Pages用のサイトファイルは `docs` に配置しています。
+
+開発者向けの構成メモは `ARCHITECTURE.md` にあります。
 
 ## ライセンス
 
@@ -101,6 +110,15 @@ powershell -ExecutionPolicy Bypass -File .\src\build.ps1
 ```text
 dist\TrayClockTooltip.exe
 ```
+
+開発用の補助オプション:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\src\build.ps1 -Run
+powershell -ExecutionPolicy Bypass -File .\src\build.ps1 -RunInstallPrompt
+```
+
+`-RunInstallPrompt` は、ビルドしたEXEを `--install-prompt` 付きで起動します。インストール済みEXEが存在し、ビルドしたEXEが別パスから起動している場合は、ビルドしたEXEをインストールするか、既存インスタンスを終了してビルドしたEXEをポータブル動作として起動するか、キャンセルするかを確認します。
 
 ## テストケース
 

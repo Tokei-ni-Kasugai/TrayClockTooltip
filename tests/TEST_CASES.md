@@ -59,6 +59,34 @@ Manual test cases for the current behavior. Do not use debug execution.
 | TM-07 | Adjust menu hidden without drift | With drift below 1 second after NTP query, right-click tray icon. | `Adjust Windows time (admin)` is not shown. |
 | TM-08 | Advanced forced adjust menu | With drift below 1 second after NTP query, hold Shift and right-click tray icon. | Tray menu shows `NTP: refresh`, `Adjust Windows time (admin)`, separator, and `Exit`. Selecting Adjust starts time adjustment with administrator rights. |
 | TM-09 | No forced adjust while querying | While an NTP query is in progress, hold Shift and right-click tray icon. | `NTP: refresh` is disabled and `Adjust Windows time (admin)` is not shown. |
+| TM-10 | Startup submenu appears | Right-click tray icon. | Tray menu shows a `Startup` submenu with `Install for this user`, `Add this EXE to startup`, and `Remove startup registration`. |
+| TM-11 | Startup submenu disabled states | Open the tray menu when startup is unregistered, when startup points to the current EXE, when startup points to a missing EXE, when startup points to an existing identical EXE, when startup points to an existing different EXE, when the installed EXE exists and matches the current EXE, and when startup points away from the installed EXE. | `Remove startup registration` is disabled when no startup registration exists. `Add this EXE to startup` is enabled only when startup is unregistered, when the registered EXE is missing, or when the registered EXE differs from the current EXE. `Install for this user` is enabled unless the installed EXE exists, matches the current EXE, and startup points to that installed EXE. |
+
+## Startup Registration
+
+| ID | Case | Steps | Expected |
+| --- | --- | --- | --- |
+| SU-01 | Install for this user | Choose tray menu `Startup` -> `Install for this user`. | App copies the current EXE to `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe`, verifies that the copied file matches the current EXE, writes that path to `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TrayClockTooltip`, starts the installed EXE after the current process exits, and does not show UAC. |
+| SU-02 | Register current EXE at startup | Choose tray menu `Startup` -> `Add this EXE to startup`. | App writes the current EXE path to `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TrayClockTooltip` and shows a success notification. UAC is not shown. |
+| SU-03 | Remove startup registration | Choose tray menu `Startup` -> `Remove startup registration`. | App removes `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TrayClockTooltip` and shows a success notification. UAC is not shown. |
+| SU-04 | Install from already installed path | Run the app from `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe`, then choose `Install for this user` if the item is enabled. | App does not fail by trying to overwrite itself, keeps or updates the startup registration, and shows a success notification. If the installed EXE matches the current EXE and startup already points to the installed EXE, the menu item is disabled. |
+| SU-05 | Install failure | Make the install destination unavailable or unwritable, then choose `Install for this user`. | App continues running and shows a failure notification. Existing startup registration is not intentionally removed. |
+| SU-06 | Installed EXE differs from current EXE | Place a different EXE at `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe`, then open the tray menu from another copy. | `Install for this user` remains enabled so the current EXE can update the installed copy. |
+| SU-07 | Installed EXE restart handoff | Choose `Install for this user` from a non-installed path. | The installed EXE is launched with an internal parent-wait argument, waits until the original process exits, then starts normally without being blocked by the single-instance mutex. |
+| SU-08 | Development install prompt | Launch a non-installed EXE with `--install-prompt` while an installed EXE exists. | App shows a startup confirmation with choices to install this EXE, close existing app instances and run this EXE as portable, or cancel. Installing uses the same verified install and restart handoff as `Install for this user`. |
+| SU-08A | Development install prompt portable choice | With the installed EXE running, launch a non-installed EXE with `--install-prompt`, then choose `No`. | App asks the running installed instance to exit normally, does not replace the installed EXE, and continues startup from the non-installed EXE path. |
+| SU-09 | Development install prompt skipped | Launch with `--install-prompt` when no installed EXE exists, or when the current EXE is the installed EXE. | App does not show the install prompt and continues normal startup. |
+| SU-10 | Update installed EXE while installed instance is running | Start the installed EXE, then run a different EXE and choose `Install for this user` or choose install from the `--install-prompt` dialog. | App asks the running installed instance to exit normally, waits briefly, then replaces the installed EXE. If the running instance cannot exit, install fails without force-killing it. |
+| SU-10A | Install prompt while same source EXE is running | Start a non-installed EXE, launch the same EXE with `--install-prompt`, then choose `Yes`. | App asks the already running source-path instance to exit normally, installs the EXE, and starts the installed EXE without being blocked by the single-instance mutex. |
+| SU-11 | Restore startup to installed EXE | Make the installed EXE match the current EXE, then set startup registration to a different EXE path and open the tray menu. Choose `Install for this user`. | `Install for this user` is enabled. Selecting it does not need to replace the installed EXE, but it rewrites startup registration to `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe` and shows success. |
+
+## Build Script
+
+| ID | Case | Steps | Expected |
+| --- | --- | --- | --- |
+| BS-01 | Build only | Run `powershell -ExecutionPolicy Bypass -File .\src\build.ps1`. | Build succeeds and writes `dist\TrayClockTooltip.exe`. App is not launched. |
+| BS-02 | Build and run | Run `powershell -ExecutionPolicy Bypass -File .\src\build.ps1 -Run`. | Build succeeds, then launches the built EXE. |
+| BS-03 | Build and run install prompt | Run `powershell -ExecutionPolicy Bypass -File .\src\build.ps1 -RunInstallPrompt`. | Build succeeds, then launches the built EXE with `--install-prompt`. |
 
 ## Floating Clock Menu
 
@@ -134,7 +162,7 @@ Manual test cases for the current behavior. Do not use debug execution.
 | OQ-11 | Width from date/time format | Floating clock width is based on worst-case sample strings for the current Windows date/time format. | Needs confirmation for overseas environments or long AM/PM designators. |
 ## Codex Test Results
 
-Run date: 2026-06-04
+Run date: 2026-06-11
 
 Scope:
 
@@ -146,8 +174,8 @@ Scope:
 
 | Result | IDs | Check |
 | --- | --- | --- |
-| PASS | ST-02, ST-03, HV-01, HV-02, HV-04, HV-07, FL-01, FL-01A, FL-02, FL-03, FL-04, FL-05, FL-06, FL-07, FL-08, FL-09, TM-01, TM-01A, TM-02, TM-03, TM-04, TM-05, TM-06, TM-07, TM-08, TM-09, FM-01, FM-02, FM-03, FM-04, FM-05, FM-06, FM-07, FM-08, NT-01, NT-02, NT-03, NT-04, NT-05, NT-06, NT-07, AD-01, AD-02, AD-03, AD-04, AD-05, AD-06, AD-07, AD-08, AD-09, NF-02, NF-03, TH-03, TH-04, TH-05, OQ-01, OQ-02, OQ-06, OQ-07, OQ-08, OQ-09, OQ-10, OQ-11 | Re-executed by source trace/build/artifact review. No NG was found in the cases Codex could execute. |
-| Not run by Codex | ST-01, HV-03, HV-05, HV-06, HV-08, NF-01, TH-01, TH-02, OQ-03, OQ-04, OQ-05 | Requires GUI/visual/environment operation that Codex cannot perform from this session. |
+| PASS | ST-02, ST-03, HV-01, HV-02, HV-04, HV-07, FL-01, FL-01A, FL-02, FL-03, FL-04, FL-05, FL-06, FL-07, FL-08, FL-09, TM-01, TM-01A, TM-02, TM-03, TM-04, TM-05, TM-06, TM-07, TM-08, TM-09, TM-10, TM-11, FM-01, FM-02, FM-03, FM-04, FM-05, FM-06, FM-07, FM-08, NT-01, NT-02, NT-03, NT-04, NT-05, NT-06, NT-07, AD-01, AD-02, AD-03, AD-04, AD-05, AD-06, AD-07, AD-08, AD-09, NF-02, NF-03, TH-03, TH-04, TH-05, BS-01, OQ-01, OQ-02, OQ-06, OQ-07, OQ-08, OQ-09, OQ-10, OQ-11 | Re-executed by source trace/build/artifact review. No NG was found in the cases Codex could execute. |
+| Not run by Codex | ST-01, HV-03, HV-05, HV-06, HV-08, SU-01, SU-02, SU-03, SU-04, SU-05, SU-06, SU-07, SU-08, SU-08A, SU-09, SU-10, SU-10A, SU-11, BS-02, BS-03, NF-01, TH-01, TH-02, OQ-03, OQ-04, OQ-05 | Requires GUI/visual/environment operation, registry mutation, file placement, app launch, or another environment-dependent check that Codex did not perform from this session. |
 
 Notes:
 
@@ -156,3 +184,9 @@ Notes:
 - Standard tooltip suppression was rechecked: tray registration omits `NIF_TIP`, and tooltip text is cleared only on `NIN_POPUPOPEN` / `NIN_POPUPCLOSE`.
 - Session NTP refresh was rechecked: `WTS_SESSION_LOGON` and `WTS_SESSION_UNLOCK` call `StartNtpLoad`, with duplicate query prevention handled by `g_ntpQueryInProgress`.
 - Advanced Shift adjustment was rechecked by source trace: both tray and floating menus use `CanForceAdjustmentFromMenu`, and the condition excludes active NTP queries.
+- Startup menu wiring was rechecked by source trace: the tray menu owns the `Startup` submenu; disabled states are derived from current HKCU Run, registered EXE existence/binary match, and install state; command handlers call current-user install, current-EXE startup registration, and startup removal helpers.
+- Install handoff was rechecked by source trace: copied EXE verification uses byte comparison, then the installed EXE is launched with an internal parent-wait argument before the original process quits.
+- Development install prompt was rechecked by source trace: `--install-prompt` prompts when an installed EXE exists and the current EXE is running from another path, and its install choice uses the same verified install/restart core.
+- The portable prompt choice was rechecked by source trace: choosing `No` asks existing installed/source-path instances to exit normally before continuing, so the global single-instance mutex does not silently discard the portable run.
+- Instance close handling was rechecked by source trace: install updates only send `WM_CLOSE` to running instances whose process path matches the installed EXE or the source EXE, then wait briefly before copying. Force-kill is not used.
+- Build script launch helpers were rechecked by source trace. `-Run` and `-RunInstallPrompt` were not executed in this pass because they launch the GUI app.

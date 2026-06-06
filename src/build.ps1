@@ -1,5 +1,7 @@
 ﻿param(
-    [string]$OutputPath = "..\dist\TrayClockTooltip.exe"
+    [string]$OutputPath = "..\dist\TrayClockTooltip.exe",
+    [switch]$Run,
+    [switch]$RunInstallPrompt
 )
 
 $ErrorActionPreference = "Stop"
@@ -93,3 +95,10 @@ windres -O coff -o $resourceObject $resource
 gcc -municode -Os -s -mwindows -Wall -Wextra -fno-unwind-tables -fno-asynchronous-unwind-tables -o $resolvedOutput $source $resourceObject -lws2_32 -lshell32 -lgdi32 -luser32 -ladvapi32 -lole32 -lwtsapi32
 
 Write-Host "Built: $resolvedOutput"
+
+if ($RunInstallPrompt) {
+    Start-Process -FilePath $resolvedOutput -ArgumentList "--install-prompt"
+}
+elseif ($Run) {
+    Start-Process -FilePath $resolvedOutput
+}

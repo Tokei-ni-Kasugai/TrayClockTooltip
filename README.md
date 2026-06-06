@@ -16,6 +16,7 @@ Version: `1.0.0.0`
 - NTP query on session logon and unlock, useful after sleep/resume.
 - Manual NTP refresh from the tray menu.
 - Manual NTP refresh shows a success notification when NTP succeeds and drift is below 1 second.
+- Startup menu for current-user install and startup registration.
 - App clock uses the acquired NTP time when NTP succeeds.
 - If NTP acquisition fails, the app uses the Windows system clock.
 - If the Windows clock differs by 1 second or more, a custom notification is shown and time adjustment becomes available from menus.
@@ -51,6 +52,10 @@ Version: `1.0.0.0`
 - `NTP: refresh`: query the Windows Time configured NTP server again. This is shown when no drift of 1 second or more is known. If the manual refresh succeeds and drift is below 1 second, a success notification is shown.
 - `Time: +...s (...)` / `Time: -...s (...)`: shown as a status-only item when drift of 1 second or more is detected. It uses normal menu colors and does not highlight on hover.
 - `Adjust Windows time (admin)`: shown below the status item when drift of 1 second or more is detected. Selecting it starts time adjustment with administrator rights.
+- `Startup`:
+  - `Install for this user`: copy the EXE to `%LOCALAPPDATA%\Programs\TrayClockTooltip\`, verify the copied file, register that copy for startup, exit the current EXE, and launch the installed EXE.
+  - `Add this EXE to startup`: register the currently running EXE for startup.
+  - `Remove startup registration`: remove the app's current-user startup registration.
 - `Exit`: exit the app.
 
 ### Advanced Usage
@@ -69,7 +74,9 @@ When adjustment is requested, the app asks for UAC confirmation, re-queries NTP,
 - Standard tooltip suppression depends on Windows behavior. Timing may vary slightly by environment.
 - Hidden tray icon flyout behavior, non-bottom taskbar positions, and multi-monitor or mixed-DPI environments may need additional confirmation.
 - The executable is unsigned, so Windows SmartScreen or security software may show a warning.
-- No startup registration is included. Add the executable to Startup manually if desired.
+- Startup registration uses the current user's Run registry key and does not require administrator rights.
+- Startup menu items are disabled when they would not change the current startup state.
+- When updating the installed EXE from another copy, the app asks already running installed/source-path instances to exit before replacing it.
 
 ## Release Package
 
@@ -83,6 +90,8 @@ The release ZIP contains:
 The release page lists SHA256 hashes for the release ZIP and source ZIP.
 
 The website files are in `docs` for GitHub Pages.
+
+Developer architecture notes are in `ARCHITECTURE.md`.
 
 ## License
 
@@ -101,6 +110,15 @@ The executable is written to:
 ```text
 dist\TrayClockTooltip.exe
 ```
+
+Development helpers:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\src\build.ps1 -Run
+powershell -ExecutionPolicy Bypass -File .\src\build.ps1 -RunInstallPrompt
+```
+
+`-RunInstallPrompt` launches the built EXE with `--install-prompt`. If an installed EXE exists and the built EXE is running from another path, the app asks whether to install the built EXE, close existing app instances and run the built EXE as portable, or cancel.
 
 ## Test Cases
 
