@@ -514,8 +514,8 @@
             <p>When <span class="nowrap">Windows time</span> differs from <span class="nowrap">NTP time</span> by 1 second or more, the app shows the state in a notification and menu.</p>
           </div>
           <div class="feature">
-            <strong>UAC only when needed</strong>
-            <p>The app asks for <span class="nowrap">UAC</span> confirmation only when adjusting Windows time. It does not stay resident with administrator rights.</p>
+            <strong>Manual sync when it matters</strong>
+            <p>Before a reservation, ticket sale, or other time-sensitive event, use <span class="nowrap">Shift + right-click</span> to expose time adjustment even for sub-second drift.</p>
           </div>
         </div>
       </div>
@@ -532,6 +532,7 @@
             <li><span>✓</span><div>Checks NTP time at startup, logon, and unlock</div></li>
             <li><span>✓</span><div>Shows drift of 1 second or more in the notification and menu</div></li>
             <li><span>✓</span><div>Re-queries NTP time before applying it to Windows time</div></li>
+            <li><span>✓</span><div>Asks for UAC only when adjusting time and does not run elevated</div></li>
           </ul>
         </div>
         <img class="showcase-image" src="screenshot-notification-sanitized.png" alt="Notification showing drift from NTP time">
@@ -555,7 +556,7 @@
           </li>
           <li>
             <span>3</span>
-            <div><strong>Right-click for the menu</strong><p>Recheck time, adjust Windows time, or exit when needed.</p></div>
+            <div><strong>Right-click for the menu</strong><p>Recheck time, adjust Windows time, or exit when needed. Hold Shift while opening the menu to show adjustment even for sub-second drift.</p></div>
           </li>
           <li>
             <span>4</span>

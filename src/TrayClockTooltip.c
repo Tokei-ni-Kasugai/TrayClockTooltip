@@ -673,11 +673,20 @@ static void StartNtpLoad(BOOL notifySuccessIfNoDrift)
     }
 }
 
+static BOOL IsShiftPressed(void)
+{
+    return (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+}
+
+static BOOL CanForceAdjustmentFromMenu(void)
+{
+    return IsShiftPressed() && !g_ntpQueryInProgress;
+}
+
 static void AppendTrayRefreshMenuItem(HMENU menu)
 {
     UINT flags = g_ntpQueryInProgress ? MF_STRING | MF_DISABLED : MF_STRING;
     AppendMenuW(menu, flags, ID_TRAY_REFRESH_NTP, g_statusText);
-    AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
 }
 
 static void MeasureTextLine(HDC dc, const WCHAR *text, SIZE *size)
@@ -746,7 +755,7 @@ static BOOL DrawTrayStatusMenuItem(const DRAWITEMSTRUCT *draw)
     return TRUE;
 }
 
-static HMENU CreateTrayMenu(void)
+static HMENU CreateTrayMenu(BOOL forceAdjustmentAvailable)
 {
     HMENU menu = CreatePopupMenu();
     if (g_adjustmentAvailable) {
@@ -755,15 +764,19 @@ static HMENU CreateTrayMenu(void)
         AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     } else {
         AppendTrayRefreshMenuItem(menu);
+        if (forceAdjustmentAvailable) {
+            AppendMenuW(menu, MF_STRING, ID_TRAY_ADJUST, L"Adjust Windows time (admin)");
+        }
+        AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     }
     AppendMenuW(menu, MF_STRING, ID_TRAY_EXIT, L"Exit");
     return menu;
 }
 
-static HMENU CreatePopupMenuForClock(void)
+static HMENU CreatePopupMenuForClock(BOOL forceAdjustmentAvailable)
 {
     HMENU menu = CreatePopupMenu();
-    if (g_adjustmentAvailable) {
+    if (g_adjustmentAvailable || forceAdjustmentAvailable) {
         AppendMenuW(menu, MF_STRING, ID_POPUP_ADJUST, L"Adjust Windows time (admin)");
         AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     }
@@ -1058,7 +1071,7 @@ static void HideHoverPreviewIfCursorAway(void)
 static void ShowTrayMenu(void)
 {
     POINT pt;
-    HMENU menu = CreateTrayMenu();
+    HMENU menu = CreateTrayMenu(CanForceAdjustmentFromMenu());
     g_lastTrayMenuTick = GetTickCount();
     GetCursorPos(&pt);
     ShowContextMenu(menu, g_mainWnd, pt);
@@ -1069,7 +1082,7 @@ static void ShowTrayMenu(void)
 static void ShowClockMenu(HWND hwnd)
 {
     POINT pt;
-    HMENU menu = CreatePopupMenuForClock();
+    HMENU menu = CreatePopupMenuForClock(CanForceAdjustmentFromMenu());
     GetCursorPos(&pt);
     ShowContextMenu(menu, hwnd, pt);
     DestroyMenu(menu);

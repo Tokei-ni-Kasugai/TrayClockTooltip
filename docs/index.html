@@ -514,8 +514,8 @@
             <p><span class="nowrap">Windows時計</span>と<span class="nowrap">NTP時刻</span>が1秒以上ずれている場合、独自通知とメニューで状態を知らせます。</p>
           </div>
           <div class="feature">
-            <strong>必要時だけUAC</strong>
-            <p>時刻調整が必要なときだけ<span class="nowrap">UAC</span>で確認します。アプリ本体は管理者権限で常駐しません。</p>
+            <strong>手動同期にも対応</strong>
+            <p>予約開始や販売開始の前など、1秒未満のずれでも気になるときは<span class="nowrap">Shift + 右クリック</span>から時刻調整を呼び出せます。</p>
           </div>
         </div>
       </div>
@@ -532,6 +532,7 @@
             <li><span>✓</span><div>起動時、ログオン時、ロック解除時にNTP時刻を確認</div></li>
             <li><span>✓</span><div>1秒以上のずれがあると通知とメニューで表示</div></li>
             <li><span>✓</span><div>調整時はNTP時刻を再取得してからWindows時刻へ適用</div></li>
+            <li><span>✓</span><div>時刻調整時のみUACで確認し、管理者権限では常駐しません</div></li>
           </ul>
         </div>
         <img class="showcase-image" src="screenshot-notification-sanitized.png" alt="NTP時刻との差を知らせる通知">
@@ -555,7 +556,7 @@
           </li>
           <li>
             <span>3</span>
-            <div><strong>右クリックでメニュー</strong><p>時刻の再確認、時刻調整、終了を必要に応じて実行できます。</p></div>
+            <div><strong>右クリックでメニュー</strong><p>時刻の再確認、時刻調整、終了を必要に応じて実行できます。Shiftを押しながら開くと、1秒未満のずれでも調整メニューを表示できます。</p></div>
           </li>
           <li>
             <span>4</span>

@@ -57,6 +57,8 @@
 | TM-05 | ずれ表示 | 1秒以上の時刻ずれを発生させ、NTP取得を行う。 | トレイメニュー先頭に表示専用の `Time: +...s (...)` または `Time: -...s (...)` が表示される。通常メニュー色で表示され、hoverしても選択色に変化しない。クリックしてもメニューは閉じない。 |
 | TM-06 | トレイAdjust表示 | 1秒以上のずれが検出された状態でトレイメニューを開く。 | `Time: ...` の下に `Adjust Windows time (admin)` が表示される。選択すると管理者権限での時刻調整が開始される。 |
 | TM-07 | Adjust非表示 | ずれが1秒未満の状態でトレイメニューを開く。 | `Adjust Windows time (admin)` は表示されない。 |
+| TM-08 | 高度な強制Adjust表示 | NTP取得後のずれが1秒未満の状態で、Shiftを押しながらトレイアイコンを右クリックする。 | `NTP: refresh`、`Adjust Windows time (admin)`、区切り線、`Exit` が表示される。Adjustを選択すると管理者権限での時刻調整が開始される。 |
+| TM-09 | 問い合わせ中は強制Adjust非表示 | NTP問い合わせ中に、Shiftを押しながらトレイアイコンを右クリックする。 | `NTP: refresh` はグレーアウトし、`Adjust Windows time (admin)` は表示されない。 |
 
 ## フローティング時計メニュー
 
@@ -68,6 +70,8 @@
 | FM-04 | 問い合わせ中のフローティングメニュー | NTP問い合わせ中にフローティング時計メニューを開く。 | `NTP: refresh` は表示されない。 |
 | FM-05 | Adjust表示 | 1秒以上のずれが検出された状態でフローティング時計メニューを開く。 | `NTP: refresh` は表示されず、`Adjust Windows time (admin)` が表示される。 |
 | FM-06 | ずれ文字列は表示しない | 1秒以上のずれが検出された状態でフローティング時計メニューを開く。 | フローティング時計メニューは `Time: ...` を表示しない。 |
+| FM-07 | 高度な強制Adjust表示 | NTP取得後のずれが1秒未満の状態で、Shiftを押しながらフローティング時計を右クリックする。 | `Adjust Windows time (admin)`、区切り線、`Close`、区切り線、`Exit` が表示される。Adjustを選択すると管理者権限での時刻調整が開始される。 |
+| FM-08 | 問い合わせ中は強制Adjust非表示 | NTP問い合わせ中に、Shiftを押しながらフローティング時計を右クリックする。 | `NTP: refresh` も `Adjust Windows time (admin)` も表示されない。 |
 
 ## NTPと時計表示
 
@@ -143,7 +147,7 @@
 
 | 結果 | ID | 確認内容 |
 | --- | --- | --- |
-| PASS | ST-02, ST-03, HV-01, HV-02, HV-04, HV-07, FL-01, FL-01A, FL-02, FL-03, FL-04, FL-05, FL-06, FL-07, FL-08, FL-09, TM-01, TM-01A, TM-02, TM-03, TM-04, TM-05, TM-06, TM-07, FM-01, FM-02, FM-03, FM-04, FM-05, FM-06, NT-01, NT-02, NT-03, NT-04, NT-05, NT-06, NT-07, AD-01, AD-02, AD-03, AD-04, AD-05, AD-06, AD-07, AD-08, AD-09, NF-02, NF-03, TH-03, TH-04, TH-05, OQ-01, OQ-02, OQ-06, OQ-07, OQ-08, OQ-09, OQ-10, OQ-11 | ソーストレース/ビルド/成果物確認で再実施。Codex側で実施可能だったケースにNGはありません。 |
+| PASS | ST-02, ST-03, HV-01, HV-02, HV-04, HV-07, FL-01, FL-01A, FL-02, FL-03, FL-04, FL-05, FL-06, FL-07, FL-08, FL-09, TM-01, TM-01A, TM-02, TM-03, TM-04, TM-05, TM-06, TM-07, TM-08, TM-09, FM-01, FM-02, FM-03, FM-04, FM-05, FM-06, FM-07, FM-08, NT-01, NT-02, NT-03, NT-04, NT-05, NT-06, NT-07, AD-01, AD-02, AD-03, AD-04, AD-05, AD-06, AD-07, AD-08, AD-09, NF-02, NF-03, TH-03, TH-04, TH-05, OQ-01, OQ-02, OQ-06, OQ-07, OQ-08, OQ-09, OQ-10, OQ-11 | ソーストレース/ビルド/成果物確認で再実施。Codex側で実施可能だったケースにNGはありません。 |
 | Codex未実施 | ST-01, HV-03, HV-05, HV-06, HV-08, NF-01, TH-01, TH-02, OQ-03, OQ-04, OQ-05 | GUI視認、トレイ実操作、環境依存確認が必要なため、このセッションでは未実施。 |
 
 補足:
@@ -152,3 +156,4 @@
 - フローティング側refresh削除を再確認: `ID_POPUP_REFRESH_NTP` は存在せず、`NTP: refresh` はトレイ側のみ。
 - 標準ツールチップ抑止を再確認: トレイ登録は `NIF_TIP` なし、`NIN_POPUPOPEN` / `NIN_POPUPCLOSE` 時のみtooltip文字列をクリア。
 - セッション通知によるNTP再取得を再確認: `WTS_SESSION_LOGON` / `WTS_SESSION_UNLOCK` で `StartNtpLoad` を呼び、`g_ntpQueryInProgress` で二重開始を抑止。
+- 高度なShift時刻調整をソーストレースで再確認: トレイ/フローティングの両メニューが `CanForceAdjustmentFromMenu` を使用し、NTP問い合わせ中は条件から除外。

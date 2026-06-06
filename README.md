@@ -53,6 +53,10 @@ Version: `1.0.0.0`
 - `Adjust Windows time (admin)`: shown below the status item when drift of 1 second or more is detected. Selecting it starts time adjustment with administrator rights.
 - `Exit`: exit the app.
 
+### Advanced Usage
+
+- `Shift + right-click` the tray icon or floating clock: show `Adjust Windows time (admin)` even when known drift is below 1 second. Use this when you want to manually synchronize Windows time before a time-sensitive reservation, sale, or similar event. It is not shown while an NTP query is in progress.
+
 ## NTP And Time Adjustment
 
 The app queries the NTP server configured in Windows Time. It does not hard-code an NTP server.

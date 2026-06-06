@@ -57,6 +57,8 @@ Manual test cases for the current behavior. Do not use debug execution.
 | TM-05 | Drift tray menu status | Create or simulate Windows time drift of at least 1 second, then let the app query NTP. | Tray menu shows a status-only `Time: +...s (...)` or `Time: -...s (...)` item at the top. It uses normal menu colors, does not highlight on hover, and does not close the menu when clicked. |
 | TM-06 | Tray adjust item appears | With drift of at least 1 second detected, right-click tray icon. | `Adjust Windows time (admin)` appears below the status-only `Time: ...` item. Selecting it starts time adjustment with administrator rights. |
 | TM-07 | Adjust menu hidden without drift | With drift below 1 second after NTP query, right-click tray icon. | `Adjust Windows time (admin)` is not shown. |
+| TM-08 | Advanced forced adjust menu | With drift below 1 second after NTP query, hold Shift and right-click tray icon. | Tray menu shows `NTP: refresh`, `Adjust Windows time (admin)`, separator, and `Exit`. Selecting Adjust starts time adjustment with administrator rights. |
+| TM-09 | No forced adjust while querying | While an NTP query is in progress, hold Shift and right-click tray icon. | `NTP: refresh` is disabled and `Adjust Windows time (admin)` is not shown. |
 
 ## Floating Clock Menu
 
@@ -68,6 +70,8 @@ Manual test cases for the current behavior. Do not use debug execution.
 | FM-04 | Floating menu during NTP query | Open floating menu while NTP query is in progress. | `NTP: refresh` is not shown. |
 | FM-05 | Floating adjust menu appears on drift | With drift of at least 1 second detected, right-click floating clock. | `NTP: refresh` is hidden and `Adjust Windows time (admin)` is shown. |
 | FM-06 | Floating menu does not show drift text | With drift of at least 1 second detected, right-click floating clock. | Floating menu does not show `Time: ...`. |
+| FM-07 | Advanced forced floating adjust menu | With drift below 1 second after NTP query, hold Shift and right-click floating clock. | Floating menu shows `Adjust Windows time (admin)`, separator, `Close`, separator, and `Exit`. Selecting Adjust starts time adjustment with administrator rights. |
+| FM-08 | No forced floating adjust while querying | While an NTP query is in progress, hold Shift and right-click floating clock. | Floating menu does not show `NTP: refresh` or `Adjust Windows time (admin)`. |
 
 ## NTP And Clock Behavior
 
@@ -142,7 +146,7 @@ Scope:
 
 | Result | IDs | Check |
 | --- | --- | --- |
-| PASS | ST-02, ST-03, HV-01, HV-02, HV-04, HV-07, FL-01, FL-01A, FL-02, FL-03, FL-04, FL-05, FL-06, FL-07, FL-08, FL-09, TM-01, TM-01A, TM-02, TM-03, TM-04, TM-05, TM-06, TM-07, FM-01, FM-02, FM-03, FM-04, FM-05, FM-06, NT-01, NT-02, NT-03, NT-04, NT-05, NT-06, NT-07, AD-01, AD-02, AD-03, AD-04, AD-05, AD-06, AD-07, AD-08, AD-09, NF-02, NF-03, TH-03, TH-04, TH-05, OQ-01, OQ-02, OQ-06, OQ-07, OQ-08, OQ-09, OQ-10, OQ-11 | Re-executed by source trace/build/artifact review. No NG was found in the cases Codex could execute. |
+| PASS | ST-02, ST-03, HV-01, HV-02, HV-04, HV-07, FL-01, FL-01A, FL-02, FL-03, FL-04, FL-05, FL-06, FL-07, FL-08, FL-09, TM-01, TM-01A, TM-02, TM-03, TM-04, TM-05, TM-06, TM-07, TM-08, TM-09, FM-01, FM-02, FM-03, FM-04, FM-05, FM-06, FM-07, FM-08, NT-01, NT-02, NT-03, NT-04, NT-05, NT-06, NT-07, AD-01, AD-02, AD-03, AD-04, AD-05, AD-06, AD-07, AD-08, AD-09, NF-02, NF-03, TH-03, TH-04, TH-05, OQ-01, OQ-02, OQ-06, OQ-07, OQ-08, OQ-09, OQ-10, OQ-11 | Re-executed by source trace/build/artifact review. No NG was found in the cases Codex could execute. |
 | Not run by Codex | ST-01, HV-03, HV-05, HV-06, HV-08, NF-01, TH-01, TH-02, OQ-03, OQ-04, OQ-05 | Requires GUI/visual/environment operation that Codex cannot perform from this session. |
 
 Notes:
@@ -151,3 +155,4 @@ Notes:
 - Floating menu refresh removal was rechecked: `ID_POPUP_REFRESH_NTP` is absent and only tray `NTP: refresh` remains.
 - Standard tooltip suppression was rechecked: tray registration omits `NIF_TIP`, and tooltip text is cleared only on `NIN_POPUPOPEN` / `NIN_POPUPCLOSE`.
 - Session NTP refresh was rechecked: `WTS_SESSION_LOGON` and `WTS_SESSION_UNLOCK` call `StartNtpLoad`, with duplicate query prevention handled by `g_ntpQueryInProgress`.
+- Advanced Shift adjustment was rechecked by source trace: both tray and floating menus use `CanForceAdjustmentFromMenu`, and the condition excludes active NTP queries.
