@@ -393,6 +393,26 @@
       background: rgba(255, 255, 255, .06);
     }
 
+    .unblock-preview {
+      margin-top: 20px;
+      max-width: 480px;
+    }
+
+    .unblock-preview p {
+      margin: 0 0 10px;
+      color: rgba(255, 255, 255, .76);
+      font-size: 13px;
+    }
+
+    .unblock-preview img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border: 1px solid rgba(255, 255, 255, .2);
+      border-radius: 8px;
+      background: #f7f7f7;
+    }
+
     footer {
       padding: 34px clamp(20px, 6vw, 76px);
       color: var(--muted);
@@ -612,8 +632,11 @@
           <div class="specs">
             <div class="spec">対応環境: <span class="nowrap">Windows 11</span></div>
             <div class="spec">無署名のため<span class="nowrap">SmartScreen</span>警告の可能性あり</div>
-            <div class="spec">Windows標準で展開する場合は、展開前にZIPのプロパティで<span class="nowrap">許可する</span>を確認</div>
             <div class="spec"><span class="nowrap">SHA256</span>で整合性確認</div>
+          </div>
+          <div class="unblock-preview">
+            <p>Windows標準のエクスプローラーで展開する場合は、展開前にZIPのプロパティで<span class="nowrap">「許可する」</span>を確認してください。</p>
+            <img src="property-unblock.png" alt="ZIPファイルのプロパティに表示される許可するチェックボックス">
           </div>
         </div>
         <div>

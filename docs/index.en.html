@@ -393,6 +393,26 @@
       background: rgba(255, 255, 255, .06);
     }
 
+    .unblock-preview {
+      margin-top: 20px;
+      max-width: 480px;
+    }
+
+    .unblock-preview p {
+      margin: 0 0 10px;
+      color: rgba(255, 255, 255, .76);
+      font-size: 13px;
+    }
+
+    .unblock-preview img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border: 1px solid rgba(255, 255, 255, .2);
+      border-radius: 8px;
+      background: #f7f7f7;
+    }
+
     footer {
       padding: 34px clamp(20px, 6vw, 76px);
       color: var(--muted);
@@ -612,8 +632,11 @@
           <div class="specs">
             <div class="spec">Target: <span class="nowrap">Windows 11</span></div>
             <div class="spec">Unsigned; <span class="nowrap">SmartScreen</span> may warn</div>
-            <div class="spec">Before extracting with Windows Explorer, check ZIP <span class="nowrap">Unblock</span></div>
             <div class="spec">Verify downloads with <span class="nowrap">SHA256</span></div>
+          </div>
+          <div class="unblock-preview">
+            <p>When extracting with Windows Explorer, open the ZIP properties before extracting and check <span class="nowrap">Unblock</span>.</p>
+            <img src="property-unblock.png" alt="Unblock checkbox in ZIP file properties">
           </div>
         </div>
         <div>
