@@ -48,6 +48,8 @@
 
 #define STARTUP_RUN_KEY L"Software\\Microsoft\\Windows\\CurrentVersion\\Run"
 #define EXE_FILE_NAME L"TrayClockTooltip.exe"
+#define LOG_FILE_NAME L"TrayClockTooltip.log"
+#define LOG_MAX_BYTES 262144
 #define NTP_PORT "123"
 #define NTP_PACKET_LENGTH 48
 #define NTP_TIMEOUT_MS 3000
@@ -79,8 +81,16 @@ typedef struct AppTheme {
     COLORREF border;
 } AppTheme;
 
+typedef enum NtpEvent {
+    NTP_EVENT_STARTUP = 0,
+    NTP_EVENT_REFRESH,
+    NTP_EVENT_LOGON,
+    NTP_EVENT_UNLOCK
+} NtpEvent;
+
 typedef struct NtpResult {
     BOOL success;
+    NtpEvent event;
     int64_t offsetHns;
     WCHAR source[256];
     WCHAR message[320];
@@ -96,6 +106,10 @@ typedef struct CloseInstanceContext {
     const WCHAR *path;
     BOOL failed;
 } CloseInstanceContext;
+
+typedef struct NtpQueryContext {
+    NtpEvent event;
+} NtpQueryContext;
 
 static HINSTANCE g_instance;
 static HWND g_mainWnd;
@@ -136,6 +150,8 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 static LRESULT CALLBACK PopupWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 static LRESULT CALLBACK NotificationWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 static BOOL IsMenuActive(void);
+static void LogSimpleEvent(const WCHAR *event, const WCHAR *result, const WCHAR *details);
+static void LogNtpResult(NtpEvent event, const NtpResult *result);
 
 static int64_t FileTimeToHns(FILETIME ft)
 {
@@ -465,6 +481,7 @@ static void RunElevatedAdjustment(void)
     DWORD exitCode = 1;
 
     if (!GetCurrentExePath(exePath, ARRAYSIZE(exePath))) {
+        LogSimpleEvent(L"adjust", L"FAILED", L"error=exe_path");
         ShowNotification(APP_NAME, L"Could not start time adjustment.", FALSE);
         return;
     }
@@ -493,6 +510,11 @@ static void RunElevatedAdjustment(void)
         } else {
             ShowNotification(APP_NAME, L"Could not adjust Windows time.", FALSE);
         }
+    } else if (GetLastError() == ERROR_CANCELLED) {
+        LogSimpleEvent(L"adjust", L"CANCEL", L"error=uac");
+    } else {
+        LogSimpleEvent(L"adjust", L"FAILED", L"error=launch");
+        ShowNotification(APP_NAME, L"Could not start time adjustment.", FALSE);
     }
 }
 
@@ -696,6 +718,164 @@ static BOOL FilesAreIdentical(const WCHAR *leftPath, const WCHAR *rightPath)
     CloseHandle(right);
     CloseHandle(left);
     return identical;
+}
+
+static void StripFileName(WCHAR *path)
+{
+    WCHAR *slash = wcsrchr(path, L'\\');
+    WCHAR *altSlash = wcsrchr(path, L'/');
+    if (!slash || (altSlash && altSlash > slash)) {
+        slash = altSlash;
+    }
+    if (slash) {
+        *slash = L'\0';
+    }
+}
+
+static BOOL BuildLogPath(WCHAR *path, DWORD cch)
+{
+    WCHAR currentPath[MAX_PATH];
+    WCHAR installedPath[MAX_PATH];
+    DWORD used;
+
+    if (!GetCurrentExePath(currentPath, ARRAYSIZE(currentPath))) {
+        return FALSE;
+    }
+
+    if (BuildInstalledExePath(installedPath, ARRAYSIZE(installedPath)) &&
+        _wcsicmp(currentPath, installedPath) == 0) {
+        used = GetEnvironmentVariableW(L"LOCALAPPDATA", path, cch);
+        if (used == 0 || used >= cch) {
+            return FALSE;
+        }
+        if (!AppendPathPart(path, cch, APP_NAME)) {
+            return FALSE;
+        }
+        if (!CreateDirectoryW(path, NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
+            return FALSE;
+        }
+        return AppendPathPart(path, cch, LOG_FILE_NAME);
+    }
+
+    wcscpy_s(path, cch, currentPath);
+    StripFileName(path);
+    return AppendPathPart(path, cch, LOG_FILE_NAME);
+}
+
+static void RotateLogIfNeeded(const WCHAR *path)
+{
+    WIN32_FILE_ATTRIBUTE_DATA data;
+    LARGE_INTEGER size;
+    WCHAR backup[MAX_PATH + 3];
+
+    if (!GetFileAttributesExW(path, GetFileExInfoStandard, &data)) {
+        return;
+    }
+    size.HighPart = data.nFileSizeHigh;
+    size.LowPart = data.nFileSizeLow;
+    if (size.QuadPart <= LOG_MAX_BYTES) {
+        return;
+    }
+    if (swprintf(backup, ARRAYSIZE(backup), L"%ls.1", path) < 0) {
+        return;
+    }
+    MoveFileExW(path, backup, MOVEFILE_REPLACE_EXISTING);
+}
+
+static void WriteLogLine(const WCHAR *line)
+{
+    WCHAR path[MAX_PATH];
+    WCHAR withBreak[1024];
+    char utf8[3072];
+    HANDLE file;
+    int bytes;
+    DWORD written;
+
+    if (!BuildLogPath(path, ARRAYSIZE(path))) {
+        return;
+    }
+    RotateLogIfNeeded(path);
+    if (swprintf(withBreak, ARRAYSIZE(withBreak), L"%ls\r\n", line) < 0) {
+        return;
+    }
+    bytes = WideCharToMultiByte(CP_UTF8, 0, withBreak, -1, utf8, sizeof(utf8), NULL, NULL);
+    if (bytes <= 1) {
+        return;
+    }
+
+    file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (file == INVALID_HANDLE_VALUE) {
+        return;
+    }
+    WriteFile(file, utf8, (DWORD)(bytes - 1), &written, NULL);
+    CloseHandle(file);
+}
+
+static void FormatLogTimestamp(WCHAR *buffer, DWORD cch)
+{
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    swprintf(buffer, cch, L"%04u-%02u-%02u %02u:%02u:%02u.%03u",
+        st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
+}
+
+static void FormatOffsetValue(int64_t offsetHns, WCHAR *buffer, DWORD cch)
+{
+    WCHAR sign = offsetHns < 0 ? L'-' : L'+';
+    int64_t absHns = offsetHns < 0 ? -offsetHns : offsetHns;
+    int64_t totalMs = (absHns + 5000) / 10000;
+    int64_t seconds = totalMs / 1000;
+    int64_t millis = totalMs % 1000;
+
+    if (seconds < 100) {
+        swprintf(buffer, cch, L"%c%02lld.%03llds", sign, (long long)seconds, (long long)millis);
+    } else {
+        swprintf(buffer, cch, L"%c%lld.%03llds", sign, (long long)seconds, (long long)millis);
+    }
+}
+
+static const WCHAR *NtpEventName(NtpEvent event)
+{
+    switch (event) {
+    case NTP_EVENT_REFRESH:
+        return L"refresh";
+    case NTP_EVENT_LOGON:
+        return L"logon";
+    case NTP_EVENT_UNLOCK:
+        return L"unlock";
+    case NTP_EVENT_STARTUP:
+    default:
+        return L"startup";
+    }
+}
+
+static void LogSimpleEvent(const WCHAR *event, const WCHAR *result, const WCHAR *details)
+{
+    WCHAR timestamp[32];
+    WCHAR line[1024];
+    FormatLogTimestamp(timestamp, ARRAYSIZE(timestamp));
+    if (details && details[0]) {
+        swprintf(line, ARRAYSIZE(line), L"%ls  %-8ls %-7ls %ls", timestamp, event, result, details);
+    } else {
+        swprintf(line, ARRAYSIZE(line), L"%ls  %-8ls %-7ls", timestamp, event, result);
+    }
+    WriteLogLine(line);
+}
+
+static void LogNtpResult(NtpEvent event, const NtpResult *result)
+{
+    WCHAR details[512];
+    WCHAR offset[32];
+    const WCHAR *source = (result && result->source[0]) ? result->source : L"-";
+
+    if (result && result->success) {
+        FormatOffsetValue(result->offsetHns, offset, ARRAYSIZE(offset));
+        swprintf(details, ARRAYSIZE(details), L"offset=%ls  source=%ls", offset, source);
+        LogSimpleEvent(NtpEventName(event), L"OK", details);
+    } else {
+        swprintf(details, ARRAYSIZE(details), L"error=ntp  source=%ls", source);
+        LogSimpleEvent(NtpEventName(event), L"FAILED", details);
+    }
 }
 
 static BOOL IsStartupRegistered(void)
@@ -1035,10 +1215,11 @@ static BOOL QueryNtpOffset(const WCHAR *source, int64_t *offsetHns)
     return ok;
 }
 
-static NtpResult GetWindowsTimeOffset(void)
+static NtpResult GetWindowsTimeOffset(NtpEvent event)
 {
     NtpResult result;
     ZeroMemory(&result, sizeof(result));
+    result.event = event;
     if (!ReadConfiguredSource(result.source, ARRAYSIZE(result.source))) {
         return result;
     }
@@ -1052,10 +1233,13 @@ static NtpResult GetWindowsTimeOffset(void)
 
 static DWORD WINAPI NtpThreadProc(LPVOID param)
 {
+    NtpQueryContext *context = (NtpQueryContext *)param;
     NtpResult *result = (NtpResult *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(NtpResult));
-    (void)param;
     if (result) {
-        *result = GetWindowsTimeOffset();
+        *result = GetWindowsTimeOffset(context ? context->event : NTP_EVENT_STARTUP);
+    }
+    if (context) {
+        HeapFree(GetProcessHeap(), 0, context);
     }
     if (!PostMessageW(g_mainWnd, WM_NTP_DONE, 0, (LPARAM)result) && result) {
         HeapFree(GetProcessHeap(), 0, result);
@@ -1065,17 +1249,30 @@ static DWORD WINAPI NtpThreadProc(LPVOID param)
 
 static BOOL SetLocalTimeFromNtp(void)
 {
-    NtpResult result = GetWindowsTimeOffset();
+    NtpResult result = GetWindowsTimeOffset(NTP_EVENT_REFRESH);
     FILETIME utcFt;
     FILETIME localFt;
     SYSTEMTIME localSt;
+    WCHAR offset[32];
+    WCHAR details[512];
+    const WCHAR *source = result.source[0] ? result.source : L"-";
     if (!result.success) {
+        swprintf(details, ARRAYSIZE(details), L"error=ntp  source=%ls", source);
+        LogSimpleEvent(L"adjust", L"FAILED", details);
         return FALSE;
     }
     utcFt = HnsToFileTime(GetUtcNowHns() + result.offsetHns);
     FileTimeToLocalFileTime(&utcFt, &localFt);
     FileTimeToSystemTime(&localFt, &localSt);
-    return SetLocalTime(&localSt);
+    FormatOffsetValue(result.offsetHns, offset, ARRAYSIZE(offset));
+    if (SetLocalTime(&localSt)) {
+        swprintf(details, ARRAYSIZE(details), L"offset=%ls  source=%ls", offset, source);
+        LogSimpleEvent(L"adjust", L"OK", details);
+        return TRUE;
+    }
+    swprintf(details, ARRAYSIZE(details), L"offset=%ls  error=set_time  source=%ls", offset, source);
+    LogSimpleEvent(L"adjust", L"FAILED", details);
+    return FALSE;
 }
 
 static void ApplyNtpResult(const NtpResult *result)
@@ -1083,6 +1280,7 @@ static void ApplyNtpResult(const NtpResult *result)
     BOOL notifySuccessIfNoDrift = g_notifyNtpSuccessIfNoDrift;
     g_notifyNtpSuccessIfNoDrift = FALSE;
     g_ntpQueryInProgress = FALSE;
+    LogNtpResult(result ? result->event : NTP_EVENT_STARTUP, result);
 
     if (!result || !result->success) {
         g_clockOffsetHns = 0;
@@ -1114,9 +1312,10 @@ static void ApplyNtpResult(const NtpResult *result)
     }
 }
 
-static void StartNtpLoad(BOOL notifySuccessIfNoDrift)
+static void StartNtpLoad(NtpEvent event, BOOL notifySuccessIfNoDrift)
 {
     HANDLE thread;
+    NtpQueryContext *context;
     if (g_ntpQueryInProgress) {
         return;
     }
@@ -1124,13 +1323,24 @@ static void StartNtpLoad(BOOL notifySuccessIfNoDrift)
     g_ntpQueryInProgress = TRUE;
     g_notifyNtpSuccessIfNoDrift = notifySuccessIfNoDrift;
     SetTrayNtpMenuText(NULL);
-    thread = CreateThread(NULL, 0, NtpThreadProc, NULL, 0, NULL);
-    if (thread) {
-        CloseHandle(thread);
-    } else {
+    context = (NtpQueryContext *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(NtpQueryContext));
+    if (!context) {
         g_ntpQueryInProgress = FALSE;
         g_notifyNtpSuccessIfNoDrift = FALSE;
         SetTrayNtpMenuText(NULL);
+        LogSimpleEvent(NtpEventName(event), L"FAILED", L"error=memory");
+        return;
+    }
+    context->event = event;
+    thread = CreateThread(NULL, 0, NtpThreadProc, context, 0, NULL);
+    if (thread) {
+        CloseHandle(thread);
+    } else {
+        HeapFree(GetProcessHeap(), 0, context);
+        g_ntpQueryInProgress = FALSE;
+        g_notifyNtpSuccessIfNoDrift = FALSE;
+        SetTrayNtpMenuText(NULL);
+        LogSimpleEvent(NtpEventName(event), L"FAILED", L"error=thread");
     }
 }
 
@@ -1740,7 +1950,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         }
         EnsureTrayIcon();
         ScheduleNextTick();
-        StartNtpLoad(FALSE);
+        StartNtpLoad(NTP_EVENT_STARTUP, FALSE);
         return 0;
 
     case WM_TIMER:
@@ -1806,7 +2016,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             RunElevatedAdjustment();
             return 0;
         case ID_TRAY_REFRESH_NTP:
-            StartNtpLoad(TRUE);
+            StartNtpLoad(NTP_EVENT_REFRESH, TRUE);
             return 0;
         case ID_TRAY_INSTALL_USER:
             InstallForCurrentUser();
@@ -1852,8 +2062,10 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         return 0;
 
     case WM_WTSSESSION_CHANGE:
-        if (wParam == WTS_SESSION_LOGON || wParam == WTS_SESSION_UNLOCK) {
-            StartNtpLoad(FALSE);
+        if (wParam == WTS_SESSION_LOGON) {
+            StartNtpLoad(NTP_EVENT_LOGON, FALSE);
+        } else if (wParam == WTS_SESSION_UNLOCK) {
+            StartNtpLoad(NTP_EVENT_UNLOCK, FALSE);
         }
         return 0;
 

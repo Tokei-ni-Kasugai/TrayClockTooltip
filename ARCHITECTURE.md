@@ -36,6 +36,14 @@
 - NTP問い合わせ中は、Shift操作でも強制Adjustを表示しません。
 - 時刻調整時は、メインプロセスで保持している時刻を渡さず、昇格ヘルパー側でNTP時刻を再取得してから適用します。
 
+## NTP/時刻調整ログ
+
+- NTP取得と時刻調整の結果は `TrayClockTooltip.log` へ追記します。ログ失敗はUIや時刻処理へ影響させません。
+- インストール先 `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe` から起動している場合は、ログを `%LOCALAPPDATA%\TrayClockTooltip\TrayClockTooltip.log` に出力します。
+- それ以外の場所から起動している場合は、EXEと同じフォルダへ出力します。ポータブル運用や開発ビルドでは、アプリ本体とログが同じ場所に残ります。
+- ログは1イベント1行で、日時、イベント種別、結果、`key=value` 形式の詳細を出力します。NTP取得元サーバ名は可変長として扱い、列幅固定にはしません。
+- ログが256KBを超えた場合は `TrayClockTooltip.log.1` へローテートします。Startup登録削除時もログは削除しません。
+
 ## 自動起動登録
 
 - `Install for this user` は、現在のEXEを `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe` にコピーし、コピー結果をバイナリ比較で検証し、その配置先をHKCU Runへ登録します。現在のEXEが配置先と異なる場合は、現在のEXEを終了して配置先EXEを起動します。
