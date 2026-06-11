@@ -743,11 +743,25 @@ static BOOL GetDirectoryFromPath(const WCHAR *path, WCHAR *dir, DWORD cch)
     return dir[0] != L'\0';
 }
 
+static BOOL BuildUserLogPath(WCHAR *path, DWORD cch)
+{
+    DWORD used = GetEnvironmentVariableW(L"LOCALAPPDATA", path, cch);
+    if (used == 0 || used >= cch) {
+        return FALSE;
+    }
+    if (!AppendPathPart(path, cch, APP_NAME)) {
+        return FALSE;
+    }
+    if (!CreateDirectoryW(path, NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
+        return FALSE;
+    }
+    return AppendPathPart(path, cch, LOG_FILE_NAME);
+}
+
 static BOOL BuildLogPath(WCHAR *path, DWORD cch)
 {
     WCHAR currentPath[MAX_PATH];
     WCHAR installedPath[MAX_PATH];
-    DWORD used;
 
     if (!GetCurrentExePath(currentPath, ARRAYSIZE(currentPath))) {
         return FALSE;
@@ -755,17 +769,7 @@ static BOOL BuildLogPath(WCHAR *path, DWORD cch)
 
     if (BuildInstalledExePath(installedPath, ARRAYSIZE(installedPath)) &&
         _wcsicmp(currentPath, installedPath) == 0) {
-        used = GetEnvironmentVariableW(L"LOCALAPPDATA", path, cch);
-        if (used == 0 || used >= cch) {
-            return FALSE;
-        }
-        if (!AppendPathPart(path, cch, APP_NAME)) {
-            return FALSE;
-        }
-        if (!CreateDirectoryW(path, NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
-            return FALSE;
-        }
-        return AppendPathPart(path, cch, LOG_FILE_NAME);
+        return BuildUserLogPath(path, cch);
     }
 
     wcscpy_s(path, cch, currentPath);
@@ -793,18 +797,14 @@ static void RotateLogIfNeeded(const WCHAR *path)
     MoveFileExW(path, backup, MOVEFILE_REPLACE_EXISTING);
 }
 
-static void WriteLogLine(const WCHAR *line)
+static void WriteLogLineToPath(const WCHAR *path, const WCHAR *line)
 {
-    WCHAR path[MAX_PATH];
     WCHAR withBreak[1024];
     char utf8[3072];
     HANDLE file;
     int bytes;
     DWORD written;
 
-    if (!BuildLogPath(path, ARRAYSIZE(path))) {
-        return;
-    }
     RotateLogIfNeeded(path);
     if (swprintf(withBreak, ARRAYSIZE(withBreak), L"%ls\r\n", line) < 0) {
         return;
@@ -820,6 +820,22 @@ static void WriteLogLine(const WCHAR *line)
     }
     WriteFile(file, utf8, (DWORD)(bytes - 1), &written, NULL);
     CloseHandle(file);
+}
+
+static void WriteLogLine(const WCHAR *line)
+{
+    WCHAR path[MAX_PATH];
+    if (BuildLogPath(path, ARRAYSIZE(path))) {
+        WriteLogLineToPath(path, line);
+    }
+}
+
+static void WriteUserLogLine(const WCHAR *line)
+{
+    WCHAR path[MAX_PATH];
+    if (BuildUserLogPath(path, ARRAYSIZE(path))) {
+        WriteLogLineToPath(path, line);
+    }
 }
 
 static void FormatLogTimestamp(WCHAR *buffer, DWORD cch)
@@ -873,11 +889,24 @@ static void LogSimpleEvent(const WCHAR *event, const WCHAR *result, const WCHAR 
     WriteLogLine(line);
 }
 
+static void LogSimpleUserEvent(const WCHAR *event, const WCHAR *result, const WCHAR *details)
+{
+    WCHAR timestamp[32];
+    WCHAR line[1024];
+    FormatLogTimestamp(timestamp, ARRAYSIZE(timestamp));
+    if (details && details[0]) {
+        swprintf(line, ARRAYSIZE(line), L"%ls  %-8ls %-7ls %ls", timestamp, event, result, details);
+    } else {
+        swprintf(line, ARRAYSIZE(line), L"%ls  %-8ls %-7ls", timestamp, event, result);
+    }
+    WriteUserLogLine(line);
+}
+
 static void LogInstallEvent(const WCHAR *result, const WCHAR *stage)
 {
     WCHAR details[128];
     swprintf(details, ARRAYSIZE(details), L"stage=%ls", stage);
-    LogSimpleEvent(L"install", result, details);
+    LogSimpleUserEvent(L"install", result, details);
 }
 
 static void LogNtpResult(NtpEvent event, const NtpResult *result)

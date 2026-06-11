@@ -4,6 +4,7 @@
 
 - Fixed installed app launch so it no longer keeps the portable source folder as its current directory after install.
 - Adjusted install handoff exit handling and added install-stage logging for troubleshooting.
+- Install-stage logs are written to the user log folder so they remain available after deleting the portable source folder.
 
 ## 1.1.1 - 2026-06-11
 

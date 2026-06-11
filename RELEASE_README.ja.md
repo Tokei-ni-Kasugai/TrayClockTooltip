@@ -76,6 +76,7 @@ NTP取得、時刻調整、インストール引き継ぎの結果は `TrayClock
 
 - インストール先 `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe` から起動した場合: `%LOCALAPPDATA%\TrayClockTooltip\TrayClockTooltip.log`
 - それ以外のパスから起動した場合: 起動EXEと同じフォルダの `TrayClockTooltip.log`
+- インストール引き継ぎイベントは、起動元フォルダを削除した後でも確認できるように、常に `%LOCALAPPDATA%\TrayClockTooltip\TrayClockTooltip.log` へ記録します。
 
 256KBを超えた場合は `TrayClockTooltip.log.1` にローテートします。
 

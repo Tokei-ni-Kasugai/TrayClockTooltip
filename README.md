@@ -74,6 +74,7 @@ NTP query, time adjustment, and install handoff results are appended to `TrayClo
 
 - Installed app path `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe`: `%LOCALAPPDATA%\TrayClockTooltip\TrayClockTooltip.log`
 - Other paths, including portable or development builds: `TrayClockTooltip.log` next to the running EXE
+- Install handoff events are always written to `%LOCALAPPDATA%\TrayClockTooltip\TrayClockTooltip.log` so they remain available after deleting the source folder.
 
 The log uses one line per event:
 
