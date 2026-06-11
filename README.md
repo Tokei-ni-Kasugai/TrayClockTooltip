@@ -86,6 +86,14 @@ The log uses one line per event:
 
 When the log grows beyond 256KB, it is rotated to `TrayClockTooltip.log.1`. Log write failures do not interrupt the app.
 
+## Uninstall
+
+1. If you want to delete logs, first `Shift + right-click` the tray icon or floating clock and use `Open log folder` to open the log folder.
+2. Use `Startup` -> `Remove startup registration` from the tray menu to remove startup registration.
+3. Use `Exit` to close the app.
+4. If you used install mode, delete `%LOCALAPPDATA%\Programs\TrayClockTooltip\`.
+5. If logs are no longer needed, delete the folder opened in step 1, or `%LOCALAPPDATA%\TrayClockTooltip\`. In portable mode, logs are created next to the EXE.
+
 ## Notes
 
 - The app is mainly verified on Windows 11 with the taskbar at the bottom.
