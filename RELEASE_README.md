@@ -22,6 +22,8 @@ Run `TrayClockTooltip.exe`. The app stays in the notification area and does not 
 
 The executable is unsigned, so Windows SmartScreen or security software may show a warning.
 
+If you extract a downloaded ZIP with Windows Explorer and the app is blocked, open the ZIP file properties before extracting and check `Unblock`. This is usually unnecessary when extracting with 7-Zip.
+
 ## Features
 
 - Floating clock shown from the tray icon instead of the standard tooltip.
