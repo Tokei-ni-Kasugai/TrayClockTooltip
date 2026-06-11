@@ -88,7 +88,7 @@ When the log grows beyond 256KB, it is rotated to `TrayClockTooltip.log.1`. Log 
 
 ## Notes
 
-- The app is mainly verified on Windows 11 64-bit with the taskbar at the bottom.
+- The app is mainly verified on Windows 11 with the taskbar at the bottom.
 - Standard tooltip suppression depends on Windows behavior. Timing may vary slightly by environment.
 - Hidden tray icon flyout behavior, non-bottom taskbar positions, and multi-monitor or mixed-DPI environments may need additional confirmation.
 - The executable is unsigned, so Windows SmartScreen or security software may show a warning.

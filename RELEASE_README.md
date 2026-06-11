@@ -76,7 +76,7 @@ When the log grows beyond 256KB, it is rotated to `TrayClockTooltip.log.1`.
 
 ## Notes
 
-- Target: Windows 11 64-bit.
+- Target: Windows 11.
 - Startup registration uses the current user's Run registry key and does not require administrator rights.
 - The app is mainly verified with the Windows taskbar at the bottom.
 - Some tray, taskbar, multi-monitor, or DPI behavior may vary by environment.
