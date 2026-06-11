@@ -1360,34 +1360,6 @@ static BOOL CanForceAdjustmentFromMenu(BOOL advancedMenuRequested)
     return advancedMenuRequested && !g_ntpQueryInProgress;
 }
 
-static BOOL LaunchExplorerForFolder(const WCHAR *folder)
-{
-    WCHAR explorerPath[MAX_PATH];
-    WCHAR commandLine[(MAX_PATH * 2) + 8];
-    STARTUPINFOW startupInfo;
-    PROCESS_INFORMATION processInfo;
-
-    if (GetWindowsDirectoryW(explorerPath, ARRAYSIZE(explorerPath)) == 0 ||
-        !AppendPathPart(explorerPath, ARRAYSIZE(explorerPath), L"explorer.exe")) {
-        return FALSE;
-    }
-    if (swprintf(commandLine, ARRAYSIZE(commandLine), L"\"%ls\" \"%ls\"", explorerPath, folder) < 0) {
-        return FALSE;
-    }
-
-    ZeroMemory(&startupInfo, sizeof(startupInfo));
-    ZeroMemory(&processInfo, sizeof(processInfo));
-    startupInfo.cb = sizeof(startupInfo);
-    if (!CreateProcessW(explorerPath, commandLine, NULL, NULL, FALSE, 0, NULL, NULL,
-        &startupInfo, &processInfo)) {
-        return FALSE;
-    }
-
-    CloseHandle(processInfo.hThread);
-    CloseHandle(processInfo.hProcess);
-    return TRUE;
-}
-
 static void OpenLogFolder(void)
 {
     WCHAR path[MAX_PATH];
@@ -1397,7 +1369,7 @@ static void OpenLogFolder(void)
         return;
     }
     StripFileName(path);
-    if (!LaunchExplorerForFolder(path)) {
+    if ((INT_PTR)ShellExecuteW(NULL, L"open", path, NULL, NULL, SW_SHOWNORMAL) <= 32) {
         ShowNotification(APP_NAME, L"Could not open log folder.", FALSE);
     }
 }
