@@ -14,7 +14,7 @@ Version: `1.1.2.0`
 - NTP query on session logon and unlock, useful after sleep/resume.
 - Manual NTP refresh from the tray menu.
 - Manual NTP refresh shows a success notification when NTP succeeds and drift is below 1 second.
-- NTP query and time adjustment history are written to a small text log.
+- NTP query, time adjustment, and install handoff history are written to a small text log.
 - Startup menu for current-user install and startup registration.
 - App clock uses the acquired NTP time when NTP succeeds.
 - If NTP acquisition fails, the app uses the Windows system clock.
@@ -70,7 +70,7 @@ When adjustment is requested, the app asks for UAC confirmation, re-queries NTP,
 
 ## Log
 
-NTP query and time adjustment results are appended to `TrayClockTooltip.log`.
+NTP query, time adjustment, and install handoff results are appended to `TrayClockTooltip.log`.
 
 - Installed app path `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe`: `%LOCALAPPDATA%\TrayClockTooltip\TrayClockTooltip.log`
 - Other paths, including portable or development builds: `TrayClockTooltip.log` next to the running EXE

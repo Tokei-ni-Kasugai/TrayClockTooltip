@@ -873,6 +873,13 @@ static void LogSimpleEvent(const WCHAR *event, const WCHAR *result, const WCHAR 
     WriteLogLine(line);
 }
 
+static void LogInstallEvent(const WCHAR *result, const WCHAR *stage)
+{
+    WCHAR details[128];
+    swprintf(details, ARRAYSIZE(details), L"stage=%ls", stage);
+    LogSimpleEvent(L"install", result, details);
+}
+
 static void LogNtpResult(NtpEvent event, const NtpResult *result)
 {
     WCHAR details[512];
@@ -1022,6 +1029,15 @@ static BOOL CloseInstancesForPath(const WCHAR *path)
     return !context.failed;
 }
 
+static void RequestAppExit(void)
+{
+    if (g_mainWnd) {
+        PostMessageW(g_mainWnd, WM_CLOSE, 0, 0);
+    } else {
+        PostQuitMessage(0);
+    }
+}
+
 static BOOL LaunchInstalledExeAfterExit(const WCHAR *installedPath)
 {
     WCHAR commandLine[MAX_PATH + 64];
@@ -1054,34 +1070,48 @@ static InstallResult InstallForCurrentUserCore(void)
     WCHAR currentPath[MAX_PATH];
     WCHAR installedPath[MAX_PATH];
 
+    LogInstallEvent(L"START", L"begin");
     if (!GetCurrentExePath(currentPath, ARRAYSIZE(currentPath)) ||
         !EnsureInstallDirectory(installedPath, ARRAYSIZE(installedPath)) ||
         !AppendPathPart(installedPath, ARRAYSIZE(installedPath), EXE_FILE_NAME)) {
+        LogInstallEvent(L"FAILED", L"path");
         return INSTALL_RESULT_FAILED;
     }
 
     if (_wcsicmp(currentPath, installedPath) != 0) {
-        if (!CloseInstancesForPath(installedPath) || !CloseInstancesForPath(currentPath) ||
-            !CopyFileW(currentPath, installedPath, FALSE)) {
+        if (!CloseInstancesForPath(installedPath) || !CloseInstancesForPath(currentPath)) {
+            LogInstallEvent(L"FAILED", L"close");
             return INSTALL_RESULT_FAILED;
         }
+        if (!CopyFileW(currentPath, installedPath, FALSE)) {
+            LogInstallEvent(L"FAILED", L"copy");
+            return INSTALL_RESULT_FAILED;
+        }
+        LogInstallEvent(L"OK", L"copy");
     }
 
     if (!FilesAreIdentical(currentPath, installedPath)) {
+        LogInstallEvent(L"FAILED", L"verify");
         return INSTALL_RESULT_FAILED;
     }
+    LogInstallEvent(L"OK", L"verify");
 
     if (!SetStartupRegistration(installedPath)) {
+        LogInstallEvent(L"FAILED", L"startup");
         return INSTALL_RESULT_FAILED;
     }
+    LogInstallEvent(L"OK", L"startup");
 
     if (_wcsicmp(currentPath, installedPath) == 0) {
+        LogInstallEvent(L"OK", L"installed");
         return INSTALL_RESULT_INSTALLED;
     }
 
     if (!LaunchInstalledExeAfterExit(installedPath)) {
+        LogInstallEvent(L"FAILED", L"launch");
         return INSTALL_RESULT_FAILED;
     }
+    LogInstallEvent(L"OK", L"launch");
 
     return INSTALL_RESULT_INSTALLED_AND_LAUNCHED;
 }
@@ -1099,7 +1129,8 @@ static void InstallForCurrentUser(void)
         return;
     }
 
-    PostQuitMessage(0);
+    LogInstallEvent(L"OK", L"exit-request");
+    RequestAppExit();
 }
 
 static void RegisterCurrentExeForStartup(void)
@@ -2090,7 +2121,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         switch (LOWORD(wParam)) {
         case ID_TRAY_EXIT:
         case ID_POPUP_EXIT:
-            PostQuitMessage(0);
+            RequestAppExit();
             return 0;
         case ID_TRAY_ADJUST:
         case ID_POPUP_ADJUST:

@@ -3,6 +3,7 @@
 ## 1.1.2 - 2026-06-12
 
 - Fixed installed app launch so it no longer keeps the portable source folder as its current directory after install.
+- Adjusted install handoff exit handling and added install-stage logging for troubleshooting.
 
 ## 1.1.1 - 2026-06-11
 

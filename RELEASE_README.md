@@ -31,7 +31,7 @@ The executable is unsigned, so Windows SmartScreen or security software may show
 - Notification when Windows time differs by 1 second or more.
 - Windows time adjustment with UAC confirmation and fresh NTP re-query.
 - Current-user install and startup registration from the tray menu.
-- NTP query and time adjustment history are written to a small text log.
+- NTP query, time adjustment, and install handoff history are written to a small text log.
 - Floating clock and notification colors follow Windows mode.
 - Date and time follow the Windows user format, with seconds added when omitted.
 
@@ -72,7 +72,7 @@ When adjustment is requested, the app asks for UAC confirmation, re-queries NTP,
 
 ## Log
 
-NTP query and time adjustment results are appended to `TrayClockTooltip.log`.
+NTP query, time adjustment, and install handoff results are appended to `TrayClockTooltip.log`.
 
 - Installed app path `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe`: `%LOCALAPPDATA%\TrayClockTooltip\TrayClockTooltip.log`
 - Other paths: `TrayClockTooltip.log` next to the running EXE

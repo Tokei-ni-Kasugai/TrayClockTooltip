@@ -31,7 +31,7 @@ https://tokei-ni-kasugai.github.io/TrayClockTooltip/
 - Windows時計とのずれが1秒以上の場合に通知。
 - UAC確認後、NTP時刻を再取得してWindows時刻を調整。
 - トレイメニューから、このユーザー向けの配置と自動起動登録を実行可能。
-- NTP取得と時刻調整の履歴を小さなテキストログへ記録。
+- NTP取得、時刻調整、インストール引き継ぎの履歴を小さなテキストログへ記録。
 - フローティング時計と通知の色はWindowsモードに追従。
 - 日付と時刻はWindowsのユーザー設定形式に従い、秒がない設定でも秒を補完表示。
 
@@ -72,7 +72,7 @@ https://tokei-ni-kasugai.github.io/TrayClockTooltip/
 
 ## ログ
 
-NTP取得と時刻調整の結果は `TrayClockTooltip.log` に追記します。
+NTP取得、時刻調整、インストール引き継ぎの結果は `TrayClockTooltip.log` に追記します。
 
 - インストール先 `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe` から起動した場合: `%LOCALAPPDATA%\TrayClockTooltip\TrayClockTooltip.log`
 - それ以外のパスから起動した場合: 起動EXEと同じフォルダの `TrayClockTooltip.log`
