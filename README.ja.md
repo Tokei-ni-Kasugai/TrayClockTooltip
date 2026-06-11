@@ -16,6 +16,7 @@
 - セッションのログオン時とロック解除時にもNTP取得。スリープ復帰後の再確認に利用。
 - タスクトレイメニューから手動NTP再取得。
 - 手動NTP再取得でNTP取得に成功し、ずれが1秒未満の場合は成功通知を表示。
+- NTP取得と時刻調整の履歴を小さなテキストログへ記録。
 - Startupメニューから、このユーザー向けの配置と自動起動登録を実行可能。
 - NTP取得に成功した場合、アプリ内時計は取得したNTP時刻を基準に表示。
 - NTP取得に失敗した場合、Windowsシステム時計を利用。
@@ -61,12 +62,29 @@
 ### 高度な操作
 
 - トレイアイコンまたはフローティング時計を `Shift + 右クリック`: 既知のずれが1秒未満の場合でも `Adjust Windows time (admin)` を表示。予約開始や販売開始など、時刻に敏感な操作の前に手動でWindows時刻を同期したい場合に利用できます。NTP問い合わせ中は表示しません。
+- トレイアイコンまたはフローティング時計を `Shift + 右クリック`: NTP取得と時刻調整の履歴を確認するための `Open log folder` を表示。
 
 ## NTPと時刻調整
 
 アプリは、Windows Time に設定されているNTPサーバへ問い合わせます。NTPサーバはアプリ内に固定していません。
 
 時刻調整を実行すると、UACの確認後にNTP時刻を再取得し、その結果をWindowsの時刻へ適用します。
+
+## ログ
+
+NTP取得と時刻調整の結果は `TrayClockTooltip.log` に追記します。
+
+- インストール先 `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe` から起動した場合: `%LOCALAPPDATA%\TrayClockTooltip\TrayClockTooltip.log`
+- それ以外のパス（ポータブル版や開発用ビルドなど）から起動した場合: 起動EXEと同じフォルダの `TrayClockTooltip.log`
+
+ログは1イベント1行です。
+
+```text
+2026-06-11 16:20:31.123  startup  OK      offset=+00.842s  source=ntp.nict.jp
+2026-06-11 16:30:00.000  unlock   FAILED  error=ntp  source=time.windows.com
+```
+
+256KBを超えた場合は `TrayClockTooltip.log.1` にローテートします。ログ書き込みに失敗しても、アプリの動作は継続します。
 
 ## 注意事項
 

@@ -61,6 +61,7 @@
 | TM-09 | 問い合わせ中は強制Adjust非表示 | NTP問い合わせ中に、Shiftを押しながらトレイアイコンを右クリックする。 | `NTP: refresh` はグレーアウトし、`Adjust Windows time (admin)` は表示されない。 |
 | TM-10 | Startupサブメニュー表示 | トレイアイコンを右クリックする。 | トレイメニューに `Startup` サブメニューが表示され、`Install for this user`、`Add this EXE to startup`、`Remove startup registration` が含まれる。 |
 | TM-11 | Startupサブメニューのグレーアウト | 自動起動未登録、現在EXEが登録済み、自動起動登録先EXEが存在しない、自動起動登録先EXEが現在EXEと同一、自動起動登録先EXEが現在EXEと異なる、インストール先EXEが現在EXEと一致、Startup登録先がインストール先EXEではない、の各状態でトレイメニューを開く。 | 未登録時は `Remove startup registration` がグレーアウトする。`Add this EXE to startup` は、自動起動未登録、登録先EXEが存在しない、または登録先EXEが現在EXEと異なる場合だけ有効になる。`Install for this user` は、インストール先EXEが存在し、現在EXEと一致し、かつStartup登録先がインストール先EXEの場合だけグレーアウトする。 |
+| TM-12 | 高度なログフォルダ表示 | Shiftを押しながらトレイアイコンを右クリックし、`Open log folder` を選択する。 | `Open log folder` はShiftメニューでのみ表示され、現在使用するログフォルダを開く。NTP問い合わせ中でも表示される。 |
 
 ## 自動起動登録
 
@@ -100,6 +101,7 @@
 | FM-06 | ずれ文字列は表示しない | 1秒以上のずれが検出された状態でフローティング時計メニューを開く。 | フローティング時計メニューは `Time: ...` を表示しない。 |
 | FM-07 | 高度な強制Adjust表示 | NTP取得後のずれが1秒未満の状態で、Shiftを押しながらフローティング時計を右クリックする。 | `Adjust Windows time (admin)`、区切り線、`Close`、区切り線、`Exit` が表示される。Adjustを選択すると管理者権限での時刻調整が開始される。 |
 | FM-08 | 問い合わせ中は強制Adjust非表示 | NTP問い合わせ中に、Shiftを押しながらフローティング時計を右クリックする。 | `NTP: refresh` も `Adjust Windows time (admin)` も表示されない。 |
+| FM-09 | 高度なフローティングログフォルダ表示 | Shiftを押しながらフローティング時計を右クリックし、`Open log folder` を選択する。 | `Open log folder` はShiftメニューでのみ表示され、現在使用するログフォルダを開く。NTP問い合わせ中でも表示される。 |
 
 ## NTPと時計表示
 
@@ -126,6 +128,17 @@
 | AD-07 | UAC承認かつ調整成功 | 時刻調整を開始し、UACを承認し、昇格ヘルパーを成功させる。 | 昇格ヘルパーがNTPを再取得し、その新しい時刻で `SetLocalTime` を実行する。メインアプリは調整メニューとずれ表示を隠し、成功通知を表示する。 |
 | AD-08 | UAC待機時の時刻鮮度 | UAC表示後しばらく待ってから承認する。 | UAC前に取得した時刻ではなく、昇格ヘルパーが再取得した時刻が適用される。 |
 | AD-09 | 昇格ヘルパー失敗 | 時刻調整を開始し、UACを承認したうえで、昇格ヘルパーのNTP取得または時刻適用を失敗させる。 | アプリは動作継続し、ずれ状態を維持し、失敗通知を表示する。 |
+
+## NTP/時刻調整ログ
+
+| ID | ケース | 手順 | 期待値 |
+| --- | --- | --- | --- |
+| LG-01 | 起動/セッションNTPログ | アプリを起動する。その後、アプリ起動中にログオンまたはロック解除を行う。 | `startup`、`logon`、`unlock` のいずれかのイベントが `TrayClockTooltip.log` に追記される。成功時は `OK` と `offset=... source=...`、失敗時は `FAILED error=ntp source=...` を記録する。 |
+| LG-02 | 手動再取得ログ | トレイメニューの `NTP: refresh` を選択する。 | `refresh` イベントがログに追記される。NTP成功時のoffsetは符号付き、100秒未満は整数部2桁以上、小数部3桁固定で、例: `+00.842s`。 |
+| LG-03 | 時刻調整ログ | `Adjust Windows time (admin)` を実行し、UACを承認する。 | 昇格ヘルパーが `adjust` イベントを追記する。成功時は `OK offset=... source=...`、失敗時は `FAILED` とエラー詳細を記録する。 |
+| LG-04 | UACキャンセルログ | `Adjust Windows time (admin)` を開始し、UACをキャンセルする。 | キャンセルだけを理由に通知は出ない。非昇格側から `adjust CANCEL error=uac` がログに記録される。 |
+| LG-05 | インストール先ログパス | `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe` から起動し、NTP取得または時刻調整を行う。 | `%LOCALAPPDATA%\TrayClockTooltip\TrayClockTooltip.log` に出力される。自動起動登録を削除しても、このログは削除されない。 |
+| LG-06 | ポータブルログパスとローテート | 上記以外のフォルダから起動し、NTP取得または時刻調整を行う。ローテート確認が必要ならログを256KB超まで増やす。 | 起動EXEと同じフォルダに出力される。256KBを超えた場合は `TrayClockTooltip.log.1` にローテートする。 |
 
 ## 通知ウィンドウ
 
@@ -175,7 +188,7 @@
 
 | 結果 | ID | 確認内容 |
 | --- | --- | --- |
-| PASS | ST-02, ST-03, HV-01, HV-02, HV-04, HV-07, FL-01, FL-01A, FL-02, FL-03, FL-04, FL-05, FL-06, FL-07, FL-08, FL-09, TM-01, TM-01A, TM-02, TM-03, TM-04, TM-05, TM-06, TM-07, TM-08, TM-09, TM-10, TM-11, FM-01, FM-02, FM-03, FM-04, FM-05, FM-06, FM-07, FM-08, NT-01, NT-02, NT-03, NT-04, NT-05, NT-06, NT-07, AD-01, AD-02, AD-03, AD-04, AD-05, AD-06, AD-07, AD-08, AD-09, NF-02, NF-03, TH-03, TH-04, TH-05, BS-01, OQ-01, OQ-02, OQ-06, OQ-07, OQ-08, OQ-09, OQ-10, OQ-11 | ソーストレース/ビルド/成果物確認で再実施。Codex側で実施可能だったケースにNGはありません。 |
+| PASS | ST-02, ST-03, HV-01, HV-02, HV-04, HV-07, FL-01, FL-01A, FL-02, FL-03, FL-04, FL-05, FL-06, FL-07, FL-08, FL-09, TM-01, TM-01A, TM-02, TM-03, TM-04, TM-05, TM-06, TM-07, TM-08, TM-09, TM-10, TM-11, TM-12, FM-01, FM-02, FM-03, FM-04, FM-05, FM-06, FM-07, FM-08, FM-09, NT-01, NT-02, NT-03, NT-04, NT-05, NT-06, NT-07, AD-01, AD-02, AD-03, AD-04, AD-05, AD-06, AD-07, AD-08, AD-09, LG-01, LG-02, LG-03, LG-04, LG-05, LG-06, NF-02, NF-03, TH-03, TH-04, TH-05, BS-01, OQ-01, OQ-02, OQ-06, OQ-07, OQ-08, OQ-09, OQ-10, OQ-11 | ソーストレース/ビルド/成果物確認で再実施。Codex側で実施可能だったケースにNGはありません。 |
 | Codex未実施 | ST-01, HV-03, HV-05, HV-06, HV-08, SU-01, SU-02, SU-03, SU-04, SU-05, SU-06, SU-07, SU-08, SU-08A, SU-09, SU-10, SU-10A, SU-11, BS-02, BS-03, NF-01, TH-01, TH-02, OQ-03, OQ-04, OQ-05 | GUI視認、トレイ実操作、レジストリ変更、ファイル配置、アプリ起動、環境依存確認が必要なため、このセッションでは未実施。 |
 
 補足:
@@ -185,6 +198,9 @@
 - 標準ツールチップ抑止を再確認: トレイ登録は `NIF_TIP` なし、`NIN_POPUPOPEN` / `NIN_POPUPCLOSE` 時のみtooltip文字列をクリア。
 - セッション通知によるNTP再取得を再確認: `WTS_SESSION_LOGON` / `WTS_SESSION_UNLOCK` で `StartNtpLoad` を呼び、`g_ntpQueryInProgress` で二重開始を抑止。
 - 高度なShift時刻調整をソーストレースで再確認: トレイ/フローティングの両メニューが `CanForceAdjustmentFromMenu` を使用し、NTP問い合わせ中は条件から除外。
+- 高度なログフォルダ表示をソーストレースで再確認: トレイ/フローティングの両Shiftメニューに `Open log folder` を追加し、強制Adjustの表示可否とは独立して表示する。
+- NTP/時刻調整ログをソーストレースで再確認: 起動時、手動再取得、ログオン、ロック解除、UACキャンセル、昇格ヘルパーの時刻調整成功、昇格ヘルパーの時刻調整失敗の各経路で、通知やメニュー挙動を変えずにログイベントを追記する。
+- ログ出力先をソーストレースで再確認: インストール先からの起動時は `%LOCALAPPDATA%\TrayClockTooltip`、それ以外はEXEと同じフォルダに出力し、自動起動登録削除ではログを削除しない。
 - Startupメニューの接続をソーストレースで再確認: トレイメニューが `Startup` サブメニューを持ち、HKCU Run、登録先EXEの存在/バイナリ一致、インストール状態からグレーアウトを判定し、各コマンドからユーザー向けインストール、現在EXEの自動起動登録、自動起動削除ヘルパーを呼び出す。
 - インストール後の起動引き継ぎをソーストレースで再確認: コピー後検証はバイト比較で行い、元プロセス終了前に内部的な親プロセス待ち引数付きでインストール先EXEを起動する。
 - 開発用インストール確認をソーストレースで再確認: `--install-prompt` はインストール先EXEが存在し、現在EXEが別パスから起動している場合だけ確認を出し、インストール選択時は同じ検証付きインストール/再起動処理を使用する。

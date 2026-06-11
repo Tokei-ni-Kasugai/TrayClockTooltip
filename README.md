@@ -16,6 +16,7 @@ Version: `1.0.0.0`
 - NTP query on session logon and unlock, useful after sleep/resume.
 - Manual NTP refresh from the tray menu.
 - Manual NTP refresh shows a success notification when NTP succeeds and drift is below 1 second.
+- NTP query and time adjustment history are written to a small text log.
 - Startup menu for current-user install and startup registration.
 - App clock uses the acquired NTP time when NTP succeeds.
 - If NTP acquisition fails, the app uses the Windows system clock.
@@ -61,12 +62,29 @@ Version: `1.0.0.0`
 ### Advanced Usage
 
 - `Shift + right-click` the tray icon or floating clock: show `Adjust Windows time (admin)` even when known drift is below 1 second. Use this when you want to manually synchronize Windows time before a time-sensitive reservation, sale, or similar event. It is not shown while an NTP query is in progress.
+- `Shift + right-click` the tray icon or floating clock: show `Open log folder` for checking NTP and adjustment history.
 
 ## NTP And Time Adjustment
 
 The app queries the NTP server configured in Windows Time. It does not hard-code an NTP server.
 
 When adjustment is requested, the app asks for UAC confirmation, re-queries NTP, and applies the result to Windows time.
+
+## Log
+
+NTP query and time adjustment results are appended to `TrayClockTooltip.log`.
+
+- Installed app path `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe`: `%LOCALAPPDATA%\TrayClockTooltip\TrayClockTooltip.log`
+- Other paths, including portable or development builds: `TrayClockTooltip.log` next to the running EXE
+
+The log uses one line per event:
+
+```text
+2026-06-11 16:20:31.123  startup  OK      offset=+00.842s  source=ntp.nict.jp
+2026-06-11 16:30:00.000  unlock   FAILED  error=ntp  source=time.windows.com
+```
+
+When the log grows beyond 256KB, it is rotated to `TrayClockTooltip.log.1`. Log write failures do not interrupt the app.
 
 ## Notes
 

@@ -61,6 +61,7 @@ Manual test cases for the current behavior. Do not use debug execution.
 | TM-09 | No forced adjust while querying | While an NTP query is in progress, hold Shift and right-click tray icon. | `NTP: refresh` is disabled and `Adjust Windows time (admin)` is not shown. |
 | TM-10 | Startup submenu appears | Right-click tray icon. | Tray menu shows a `Startup` submenu with `Install for this user`, `Add this EXE to startup`, and `Remove startup registration`. |
 | TM-11 | Startup submenu disabled states | Open the tray menu when startup is unregistered, when startup points to the current EXE, when startup points to a missing EXE, when startup points to an existing identical EXE, when startup points to an existing different EXE, when the installed EXE exists and matches the current EXE, and when startup points away from the installed EXE. | `Remove startup registration` is disabled when no startup registration exists. `Add this EXE to startup` is enabled only when startup is unregistered, when the registered EXE is missing, or when the registered EXE differs from the current EXE. `Install for this user` is enabled unless the installed EXE exists, matches the current EXE, and startup points to that installed EXE. |
+| TM-12 | Advanced open log folder | Hold Shift and right-click tray icon, then choose `Open log folder`. | `Open log folder` is shown only in the Shift menu and opens the active log folder. It remains available even while NTP is querying. |
 
 ## Startup Registration
 
@@ -100,6 +101,7 @@ Manual test cases for the current behavior. Do not use debug execution.
 | FM-06 | Floating menu does not show drift text | With drift of at least 1 second detected, right-click floating clock. | Floating menu does not show `Time: ...`. |
 | FM-07 | Advanced forced floating adjust menu | With drift below 1 second after NTP query, hold Shift and right-click floating clock. | Floating menu shows `Adjust Windows time (admin)`, separator, `Close`, separator, and `Exit`. Selecting Adjust starts time adjustment with administrator rights. |
 | FM-08 | No forced floating adjust while querying | While an NTP query is in progress, hold Shift and right-click floating clock. | Floating menu does not show `NTP: refresh` or `Adjust Windows time (admin)`. |
+| FM-09 | Advanced floating open log folder | Hold Shift and right-click floating clock, then choose `Open log folder`. | `Open log folder` is shown only in the Shift menu and opens the active log folder. It remains available even while NTP is querying. |
 
 ## NTP And Clock Behavior
 
@@ -126,6 +128,17 @@ Manual test cases for the current behavior. Do not use debug execution.
 | AD-07 | UAC approve and adjustment succeeds | Start adjustment, approve UAC, and let the elevated helper succeed. | Elevated helper re-queries NTP and applies freshly acquired time using `SetLocalTime`. The main app hides adjust/status menus and shows a success notification. |
 | AD-08 | No captured stale time | Delay at UAC prompt before approval. | Applied time is based on elevated helper's fresh NTP query, not on the time captured before UAC. |
 | AD-09 | Elevated helper fails | Start adjustment, approve UAC, and make the elevated helper fail to acquire/apply time. | App continues running, keeps the drift state, and shows a failure notification. |
+
+## NTP And Adjustment Log
+
+| ID | Case | Steps | Expected |
+| --- | --- | --- | --- |
+| LG-01 | Startup/session NTP log | Launch the app, then log on or unlock the session while the app is running. | `startup`, `logon`, or `unlock` events are appended to `TrayClockTooltip.log` with `OK` and `offset=... source=...` on success, or `FAILED error=ntp source=...` on failure. |
+| LG-02 | Manual refresh log | Choose tray menu `NTP: refresh`. | A `refresh` event is appended to the log. If NTP succeeds, the offset uses a sign, at least two integer digits below 100 seconds, and three decimal digits, such as `+00.842s`. |
+| LG-03 | Adjust log | Run `Adjust Windows time (admin)` and approve UAC. | The elevated helper appends an `adjust` event. Success logs `OK offset=... source=...`; failure logs `FAILED` with an error detail. |
+| LG-04 | UAC cancel log | Start `Adjust Windows time (admin)` and cancel UAC. | No notification is shown for the cancellation. The non-elevated launcher appends `adjust CANCEL error=uac` to the log. |
+| LG-05 | Installed log path | Run from `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe`, then trigger NTP or adjustment. | Log output goes to `%LOCALAPPDATA%\TrayClockTooltip\TrayClockTooltip.log`. Removing startup registration does not delete this log. |
+| LG-06 | Portable log path and rotation | Run from any other folder and trigger NTP or adjustment. Grow the log beyond 256KB if rotation needs confirmation. | Log output goes next to the running EXE. When the log exceeds 256KB, it rotates to `TrayClockTooltip.log.1`. |
 
 ## Notification Window
 
@@ -174,7 +187,7 @@ Scope:
 
 | Result | IDs | Check |
 | --- | --- | --- |
-| PASS | ST-02, ST-03, HV-01, HV-02, HV-04, HV-07, FL-01, FL-01A, FL-02, FL-03, FL-04, FL-05, FL-06, FL-07, FL-08, FL-09, TM-01, TM-01A, TM-02, TM-03, TM-04, TM-05, TM-06, TM-07, TM-08, TM-09, TM-10, TM-11, FM-01, FM-02, FM-03, FM-04, FM-05, FM-06, FM-07, FM-08, NT-01, NT-02, NT-03, NT-04, NT-05, NT-06, NT-07, AD-01, AD-02, AD-03, AD-04, AD-05, AD-06, AD-07, AD-08, AD-09, NF-02, NF-03, TH-03, TH-04, TH-05, BS-01, OQ-01, OQ-02, OQ-06, OQ-07, OQ-08, OQ-09, OQ-10, OQ-11 | Re-executed by source trace/build/artifact review. No NG was found in the cases Codex could execute. |
+| PASS | ST-02, ST-03, HV-01, HV-02, HV-04, HV-07, FL-01, FL-01A, FL-02, FL-03, FL-04, FL-05, FL-06, FL-07, FL-08, FL-09, TM-01, TM-01A, TM-02, TM-03, TM-04, TM-05, TM-06, TM-07, TM-08, TM-09, TM-10, TM-11, TM-12, FM-01, FM-02, FM-03, FM-04, FM-05, FM-06, FM-07, FM-08, FM-09, NT-01, NT-02, NT-03, NT-04, NT-05, NT-06, NT-07, AD-01, AD-02, AD-03, AD-04, AD-05, AD-06, AD-07, AD-08, AD-09, LG-01, LG-02, LG-03, LG-04, LG-05, LG-06, NF-02, NF-03, TH-03, TH-04, TH-05, BS-01, OQ-01, OQ-02, OQ-06, OQ-07, OQ-08, OQ-09, OQ-10, OQ-11 | Re-executed by source trace/build/artifact review. No NG was found in the cases Codex could execute. |
 | Not run by Codex | ST-01, HV-03, HV-05, HV-06, HV-08, SU-01, SU-02, SU-03, SU-04, SU-05, SU-06, SU-07, SU-08, SU-08A, SU-09, SU-10, SU-10A, SU-11, BS-02, BS-03, NF-01, TH-01, TH-02, OQ-03, OQ-04, OQ-05 | Requires GUI/visual/environment operation, registry mutation, file placement, app launch, or another environment-dependent check that Codex did not perform from this session. |
 
 Notes:
@@ -184,6 +197,9 @@ Notes:
 - Standard tooltip suppression was rechecked: tray registration omits `NIF_TIP`, and tooltip text is cleared only on `NIN_POPUPOPEN` / `NIN_POPUPCLOSE`.
 - Session NTP refresh was rechecked: `WTS_SESSION_LOGON` and `WTS_SESSION_UNLOCK` call `StartNtpLoad`, with duplicate query prevention handled by `g_ntpQueryInProgress`.
 - Advanced Shift adjustment was rechecked by source trace: both tray and floating menus use `CanForceAdjustmentFromMenu`, and the condition excludes active NTP queries.
+- Advanced log folder access was rechecked by source trace: both tray and floating Shift menus add `Open log folder`, and it remains independent from the forced adjustment availability check.
+- NTP/adjustment logging was rechecked by source trace: startup, manual refresh, logon, unlock, UAC cancellation, elevated adjustment success, and elevated adjustment failure paths append log events without changing notification or menu behavior.
+- Log routing was rechecked by source trace: installed-path runs write under `%LOCALAPPDATA%\TrayClockTooltip`, other runs write next to the EXE, and startup registration removal does not delete logs.
 - Startup menu wiring was rechecked by source trace: the tray menu owns the `Startup` submenu; disabled states are derived from current HKCU Run, registered EXE existence/binary match, and install state; command handlers call current-user install, current-EXE startup registration, and startup removal helpers.
 - Install handoff was rechecked by source trace: copied EXE verification uses byte comparison, then the installed EXE is launched with an internal parent-wait argument before the original process quits.
 - Development install prompt was rechecked by source trace: `--install-prompt` prompts when an installed EXE exists and the current EXE is running from another path, and its install choice uses the same verified install/restart core.
