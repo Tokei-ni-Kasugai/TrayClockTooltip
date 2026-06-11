@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0 - 2026-06-11
+
+- Added current-user install and startup registration from the tray menu.
+- Added a development install prompt for replacing or running a non-installed build.
+- Added NTP and time adjustment history logging with 256KB rotation.
+- Added advanced `Open log folder` access from Shift + right-click menus.
+- Added advanced Shift + right-click adjustment when known drift is below 1 second.
+- Updated GitHub Pages and documentation for the new setup and logging behavior.
+
 ## 1.0.0 - 2026-06-05
 
 Initial release.
@@ -15,4 +24,3 @@ Initial release.
 - Floating clock colors follow Windows mode.
 - Pinned floating clock side indicators.
 - Windows user date/time format support with seconds added when omitted.
-
