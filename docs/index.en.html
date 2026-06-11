@@ -333,8 +333,8 @@
 
     .download {
       display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 24px;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, 480px);
+      gap: 32px;
       align-items: center;
     }
 
@@ -351,8 +351,26 @@
       gap: 12px;
     }
 
+    .download-side {
+      display: grid;
+      gap: 16px;
+    }
+
+    .download-topline {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .download-topline > a {
+      color: #9ee8ff;
+      font-size: 12px;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+
     .hashes {
-      margin-top: 16px;
       width: min(100%, 520px);
       display: grid;
       gap: 8px;
@@ -366,12 +384,6 @@
       overflow-wrap: anywhere;
       color: rgba(255, 255, 255, .9);
       font-family: Consolas, "Courier New", monospace;
-    }
-
-    .hashes a {
-      color: #9ee8ff;
-      text-decoration: underline;
-      text-underline-offset: 3px;
     }
 
     .nowrap {
@@ -394,12 +406,11 @@
     }
 
     .unblock-preview {
-      margin-top: 20px;
       max-width: 480px;
     }
 
     .unblock-preview p {
-      margin: 0 0 10px;
+      margin: 10px 0 0;
       color: rgba(255, 255, 255, .76);
       font-size: 13px;
     }
@@ -458,6 +469,15 @@
       .download,
       .specs {
         grid-template-columns: 1fr;
+      }
+
+      .download-side {
+        width: 100%;
+      }
+
+      .download-topline {
+        align-items: flex-start;
+        flex-direction: column-reverse;
       }
 
       .download-actions {
@@ -634,20 +654,22 @@
             <div class="spec">Unsigned; <span class="nowrap">SmartScreen</span> may warn</div>
             <div class="spec">Verify downloads with <span class="nowrap">SHA256</span></div>
           </div>
-          <div class="unblock-preview">
-            <p>When extracting with Windows Explorer, open the ZIP properties before extracting and check <span class="nowrap">Unblock</span>.</p>
-            <img src="property-unblock.png" alt="Unblock checkbox in ZIP file properties">
-          </div>
         </div>
-        <div>
-          <div class="download-actions">
-            <a class="button primary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-1.1.2.zip">Download ZIP</a>
-            <a class="button secondary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-source.zip">Source ZIP</a>
+        <div class="download-side">
+          <div class="download-topline">
+            <a href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/SHA256SUMS.txt">SHA256SUMS.txt</a>
+            <div class="download-actions">
+              <a class="button primary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-1.1.2.zip">Download ZIP</a>
+              <a class="button secondary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-source.zip">Source ZIP</a>
+            </div>
           </div>
           <div class="hashes" aria-label="SHA256">
             <div>TrayClockTooltip-1.1.2.zip<code>f707a84da68548d7d15b49da1019735e332d764c64b7a1bb0466da71ad72a886</code></div>
             <div>TrayClockTooltip-source.zip<code>55ba1d941fa64ab912c4ddc12572d586e531cb4f189aeb9b175ae2775afaee8c</code></div>
-            <a href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/SHA256SUMS.txt">SHA256SUMS.txt</a>
+          </div>
+          <div class="unblock-preview">
+            <img src="property-unblock.png" alt="Unblock checkbox in ZIP file properties">
+            <p>When extracting with Windows Explorer, open the ZIP properties before extracting and check <span class="nowrap">Unblock</span>.</p>
           </div>
         </div>
       </div>
