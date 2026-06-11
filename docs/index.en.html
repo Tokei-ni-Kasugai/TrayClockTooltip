@@ -556,13 +556,30 @@
           </li>
           <li>
             <span>3</span>
-            <div><strong>Right-click for the menu</strong><p>Recheck time, adjust Windows time, or exit when needed. Hold Shift while opening the menu to show adjustment even for sub-second drift.</p></div>
+            <div><strong>Right-click for the menu</strong><p>Recheck time, adjust Windows time, or exit when needed. Hold Shift while opening the menu to adjust sub-second drift and open the log folder.</p></div>
           </li>
           <li>
             <span>4</span>
             <div><strong>Rechecks after sleep</strong><p>Rechecks time on logon or unlock after resume.</p></div>
           </li>
         </ol>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="inner showcase">
+        <div>
+          <div class="section-head">
+            <h2>Advanced actions stay behind Shift.</h2>
+            <p>The normal menu stays compact. When you want to sync even below 1 second of known drift or inspect logs, hold Shift while opening the menu.</p>
+          </div>
+          <ul class="checks">
+            <li><span>✓</span><div>Start adjustment even when known drift is below 1 second</div></li>
+            <li><span>✓</span><div>Open the log folder to inspect NTP and adjustment history</div></li>
+            <li><span>✓</span><div>Forced adjustment stays hidden while an NTP query is running</div></li>
+          </ul>
+        </div>
+        <img class="showcase-image" src="screenshot-advanced-sanitized.png" alt="Shift menu showing Open log folder">
       </div>
     </section>
 
