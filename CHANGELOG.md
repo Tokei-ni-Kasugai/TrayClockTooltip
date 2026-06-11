@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.1 - 2026-06-11
+
+- Changed `Open log folder` to run ShellExecute in a short-lived helper process.
+- This keeps Explorer's normal folder reuse behavior while reducing memory retained by the resident app.
+
 ## 1.1.0 - 2026-06-11
 
 - Added current-user install and startup registration from the tray menu.

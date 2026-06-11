@@ -6,7 +6,7 @@
 
 It avoids the .NET Framework runtime dependency and stays resident only in the notification area. The app clock can use time from the NTP server configured in Windows Time. Windows time adjustment asks for UAC confirmation only when adjustment is requested.
 
-Version: `1.1.0.0`
+Version: `1.1.1.0`
 
 ## Features
 
