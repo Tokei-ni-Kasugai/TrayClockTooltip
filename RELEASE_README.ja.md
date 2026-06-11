@@ -9,6 +9,7 @@
 - `TrayClockTooltip.exe`
 - `README.txt`
 - `README.ja.txt`
+- `CHANGELOG.txt`
 - `LICENSE`
 
 ## はじめに

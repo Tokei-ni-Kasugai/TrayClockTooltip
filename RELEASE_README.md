@@ -9,6 +9,7 @@ Version: `1.1.1.0`
 - `TrayClockTooltip.exe`
 - `README.txt`
 - `README.ja.txt`
+- `CHANGELOG.txt`
 - `LICENSE`
 
 ## Quick Start
