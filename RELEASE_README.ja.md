@@ -2,7 +2,7 @@
 
 `TrayClockTooltip` は、NTP時刻を利用できる軽量なWindowsタスクトレイ時計です。
 
-バージョン: `1.1.1.0`
+バージョン: `1.1.2.0`
 
 公式ページ:
 https://tokei-ni-kasugai.github.io/TrayClockTooltip/

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.2 - 2026-06-12
+
+- Fixed installed app launch so it no longer keeps the portable source folder as its current directory after install.
+
 ## 1.1.1 - 2026-06-11
 
 - Changed `Open log folder` to run ShellExecute in a short-lived helper process.

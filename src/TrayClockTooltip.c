@@ -734,6 +734,15 @@ static void StripFileName(WCHAR *path)
     }
 }
 
+static BOOL GetDirectoryFromPath(const WCHAR *path, WCHAR *dir, DWORD cch)
+{
+    if (wcscpy_s(dir, cch, path) != 0) {
+        return FALSE;
+    }
+    StripFileName(dir);
+    return dir[0] != L'\0';
+}
+
 static BOOL BuildLogPath(WCHAR *path, DWORD cch)
 {
     WCHAR currentPath[MAX_PATH];
@@ -1016,6 +1025,7 @@ static BOOL CloseInstancesForPath(const WCHAR *path)
 static BOOL LaunchInstalledExeAfterExit(const WCHAR *installedPath)
 {
     WCHAR commandLine[MAX_PATH + 64];
+    WCHAR currentDirectory[MAX_PATH];
     STARTUPINFOW startupInfo;
     PROCESS_INFORMATION processInfo;
 
@@ -1023,11 +1033,14 @@ static BOOL LaunchInstalledExeAfterExit(const WCHAR *installedPath)
         installedPath, WAIT_PARENT_ARGUMENT, GetCurrentProcessId()) < 0) {
         return FALSE;
     }
+    if (!GetDirectoryFromPath(installedPath, currentDirectory, ARRAYSIZE(currentDirectory))) {
+        return FALSE;
+    }
 
     ZeroMemory(&startupInfo, sizeof(startupInfo));
     ZeroMemory(&processInfo, sizeof(processInfo));
     startupInfo.cb = sizeof(startupInfo);
-    if (!CreateProcessW(installedPath, commandLine, NULL, NULL, FALSE, 0, NULL, NULL,
+    if (!CreateProcessW(installedPath, commandLine, NULL, NULL, FALSE, 0, NULL, currentDirectory,
         &startupInfo, &processInfo)) {
         return FALSE;
     }
@@ -1375,12 +1388,14 @@ static BOOL OpenLogFolderWithShell(void)
 static BOOL RunOpenLogFolderHelper(void)
 {
     WCHAR exePath[MAX_PATH];
+    WCHAR currentDirectory[MAX_PATH];
     WCHAR commandLine[MAX_PATH + 64];
     STARTUPINFOW startupInfo;
     PROCESS_INFORMATION processInfo;
     DWORD exitCode = 1;
 
     if (!GetCurrentExePath(exePath, ARRAYSIZE(exePath)) ||
+        !GetDirectoryFromPath(exePath, currentDirectory, ARRAYSIZE(currentDirectory)) ||
         swprintf(commandLine, ARRAYSIZE(commandLine), L"\"%ls\" %ls", exePath, OPEN_LOG_FOLDER_ARGUMENT) < 0) {
         return FALSE;
     }
@@ -1388,7 +1403,7 @@ static BOOL RunOpenLogFolderHelper(void)
     ZeroMemory(&startupInfo, sizeof(startupInfo));
     ZeroMemory(&processInfo, sizeof(processInfo));
     startupInfo.cb = sizeof(startupInfo);
-    if (!CreateProcessW(exePath, commandLine, NULL, NULL, FALSE, 0, NULL, NULL,
+    if (!CreateProcessW(exePath, commandLine, NULL, NULL, FALSE, 0, NULL, currentDirectory,
         &startupInfo, &processInfo)) {
         return FALSE;
     }
