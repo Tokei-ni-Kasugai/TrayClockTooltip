@@ -4,6 +4,9 @@
 
 バージョン: `1.1.1.0`
 
+公式ページ:
+https://tokei-ni-kasugai.github.io/TrayClockTooltip/
+
 ## 含まれるファイル
 
 - `TrayClockTooltip.exe`

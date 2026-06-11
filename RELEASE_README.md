@@ -4,6 +4,9 @@
 
 Version: `1.1.1.0`
 
+Website:
+https://tokei-ni-kasugai.github.io/TrayClockTooltip/
+
 ## Included Files
 
 - `TrayClockTooltip.exe`

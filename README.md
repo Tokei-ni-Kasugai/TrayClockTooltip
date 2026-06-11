@@ -1,7 +1,5 @@
 ﻿# TrayClockTooltip
 
-[日本語 README](README.ja.md)
-
 `TrayClockTooltip` is a lightweight tray clock with NTP-based app time.
 
 It avoids the .NET Framework runtime dependency and stays resident only in the notification area. The app clock can use time from the NTP server configured in Windows Time. Windows time adjustment asks for UAC confirmation only when adjustment is requested.
@@ -111,11 +109,15 @@ The release ZIP contains:
 - `TrayClockTooltip.exe`
 - `README.txt`
 - `README.ja.txt`
+- `CHANGELOG.txt`
+- `CHANGELOG.ja.txt`
 - `LICENSE`
 
 The release page lists SHA256 hashes for the release ZIP and source ZIP.
 
 The website files are in `docs` for GitHub Pages.
+
+Release-oriented Japanese documents are maintained as `RELEASE_README.ja.md` and `RELEASE_CHANGELOG.ja.md`.
 
 Developer architecture notes are in `ARCHITECTURE.md`.
 

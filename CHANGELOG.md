@@ -8,7 +8,7 @@
 ## 1.1.0 - 2026-06-11
 
 - Added current-user install and startup registration from the tray menu.
-- Added a development install prompt for replacing or running a non-installed build.
+- Added installed EXE replacement flow when installing from another copy.
 - Added NTP and time adjustment history logging with 256KB rotation.
 - Added advanced `Open log folder` access from Shift + right-click menus.
 - Added advanced Shift + right-click adjustment when known drift is below 1 second.

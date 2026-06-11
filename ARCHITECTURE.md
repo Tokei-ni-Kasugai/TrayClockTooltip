@@ -64,8 +64,9 @@
 
 ## ドキュメントとテスト
 
-- ユーザー向けREADMEは `README.md` と `README.ja.md` です。
+- リポジトリ向けREADMEは `README.md` の英語版のみです。日本語のユーザー向け説明は配布用の `RELEASE_README.ja.md` とサイトで管理します。
 - 手動テストケースは `tests/TEST_CASES.md` と `tests/TEST_CASES.ja.md` です。
 - GitHub Pages用サイトは `docs/index.html` と `docs/index.en.html` です。
 - Release ZIPに含める配布用READMEは `RELEASE_README.md` と `RELEASE_README.ja.md` から、`README.txt` と `README.ja.txt` として生成します。古めのWindows系テキストエディタでの閲覧を考慮し、どちらもShift-JISで生成します。
-- 配布用READMEには、ユーザーが実行・操作するための情報だけを載せます。ビルド手順、テストケース、GitHub Pages、開発用補助オプション、Source ZIP内の検証ファイルなど、開発者向けの情報は含めません。
+- Release ZIPに含める変更履歴は `CHANGELOG.md` と `RELEASE_CHANGELOG.ja.md` から、`CHANGELOG.txt` と `CHANGELOG.ja.txt` として生成します。
+- 配布用READMEには、ユーザーが実行・操作するための情報だけを載せます。ビルド手順、テストケース、開発用補助オプション、Source ZIP内の検証ファイルなど、開発者向けの情報は含めません。
