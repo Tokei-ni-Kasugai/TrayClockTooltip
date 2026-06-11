@@ -62,6 +62,7 @@ Version: `1.0.0.0`
 ### Advanced Usage
 
 - `Shift + right-click` the tray icon or floating clock: show `Adjust Windows time (admin)` even when known drift is below 1 second. Use this when you want to manually synchronize Windows time before a time-sensitive reservation, sale, or similar event. It is not shown while an NTP query is in progress.
+- `Shift + right-click` the tray icon or floating clock: show `Open log folder` for checking NTP and adjustment history.
 
 ## NTP And Time Adjustment
 

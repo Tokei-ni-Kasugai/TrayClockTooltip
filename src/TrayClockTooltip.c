@@ -42,6 +42,7 @@
 #define ID_TRAY_INSTALL_USER 1005
 #define ID_TRAY_STARTUP_CURRENT 1006
 #define ID_TRAY_STARTUP_REMOVE 1007
+#define ID_OPEN_LOG_FOLDER 1008
 #define ID_POPUP_CLOSE 2001
 #define ID_POPUP_EXIT 2002
 #define ID_POPUP_ADJUST 2003
@@ -1349,9 +1350,28 @@ static BOOL IsShiftPressed(void)
     return (GetKeyState(VK_SHIFT) & 0x8000) != 0;
 }
 
-static BOOL CanForceAdjustmentFromMenu(void)
+static BOOL IsAdvancedMenuRequested(void)
 {
-    return IsShiftPressed() && !g_ntpQueryInProgress;
+    return IsShiftPressed();
+}
+
+static BOOL CanForceAdjustmentFromMenu(BOOL advancedMenuRequested)
+{
+    return advancedMenuRequested && !g_ntpQueryInProgress;
+}
+
+static void OpenLogFolder(void)
+{
+    WCHAR path[MAX_PATH];
+
+    if (!BuildLogPath(path, ARRAYSIZE(path))) {
+        ShowNotification(APP_NAME, L"Could not open log folder.", FALSE);
+        return;
+    }
+    StripFileName(path);
+    if ((INT_PTR)ShellExecuteW(NULL, L"open", path, NULL, NULL, SW_SHOWNORMAL) <= 32) {
+        ShowNotification(APP_NAME, L"Could not open log folder.", FALSE);
+    }
 }
 
 static void AppendTrayRefreshMenuItem(HMENU menu)
@@ -1426,21 +1446,28 @@ static BOOL DrawTrayStatusMenuItem(const DRAWITEMSTRUCT *draw)
     return TRUE;
 }
 
-static HMENU CreateTrayMenu(BOOL forceAdjustmentAvailable)
+static HMENU CreateTrayMenu(BOOL advancedMenuRequested)
 {
     HMENU menu = CreatePopupMenu();
     HMENU startupMenu = CreatePopupMenu();
     BOOL startupRegistered = IsStartupRegistered();
     BOOL canRegisterCurrentExe = CanRegisterCurrentExeForStartup();
     BOOL canInstallForCurrentUser = CanInstallForCurrentUser();
+    BOOL forceAdjustmentAvailable = CanForceAdjustmentFromMenu(advancedMenuRequested);
     if (g_adjustmentAvailable) {
         AppendMenuW(menu, MF_OWNERDRAW | MF_DISABLED, ID_TRAY_STATUS, NULL);
         AppendMenuW(menu, MF_STRING, ID_TRAY_ADJUST, L"Adjust Windows time (admin)");
+        if (advancedMenuRequested) {
+            AppendMenuW(menu, MF_STRING, ID_OPEN_LOG_FOLDER, L"Open log folder");
+        }
         AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     } else {
         AppendTrayRefreshMenuItem(menu);
         if (forceAdjustmentAvailable) {
             AppendMenuW(menu, MF_STRING, ID_TRAY_ADJUST, L"Adjust Windows time (admin)");
+        }
+        if (advancedMenuRequested) {
+            AppendMenuW(menu, MF_STRING, ID_OPEN_LOG_FOLDER, L"Open log folder");
         }
         AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     }
@@ -1458,11 +1485,17 @@ static HMENU CreateTrayMenu(BOOL forceAdjustmentAvailable)
     return menu;
 }
 
-static HMENU CreatePopupMenuForClock(BOOL forceAdjustmentAvailable)
+static HMENU CreatePopupMenuForClock(BOOL advancedMenuRequested)
 {
     HMENU menu = CreatePopupMenu();
+    BOOL forceAdjustmentAvailable = CanForceAdjustmentFromMenu(advancedMenuRequested);
     if (g_adjustmentAvailable || forceAdjustmentAvailable) {
         AppendMenuW(menu, MF_STRING, ID_POPUP_ADJUST, L"Adjust Windows time (admin)");
+    }
+    if (advancedMenuRequested) {
+        AppendMenuW(menu, MF_STRING, ID_OPEN_LOG_FOLDER, L"Open log folder");
+    }
+    if (g_adjustmentAvailable || forceAdjustmentAvailable || advancedMenuRequested) {
         AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     }
     AppendMenuW(menu, MF_STRING, ID_POPUP_CLOSE, L"Close");
@@ -1756,7 +1789,7 @@ static void HideHoverPreviewIfCursorAway(void)
 static void ShowTrayMenu(void)
 {
     POINT pt;
-    HMENU menu = CreateTrayMenu(CanForceAdjustmentFromMenu());
+    HMENU menu = CreateTrayMenu(IsAdvancedMenuRequested());
     g_lastTrayMenuTick = GetTickCount();
     GetCursorPos(&pt);
     ShowContextMenu(menu, g_mainWnd, pt);
@@ -1767,7 +1800,7 @@ static void ShowTrayMenu(void)
 static void ShowClockMenu(HWND hwnd)
 {
     POINT pt;
-    HMENU menu = CreatePopupMenuForClock(CanForceAdjustmentFromMenu());
+    HMENU menu = CreatePopupMenuForClock(IsAdvancedMenuRequested());
     GetCursorPos(&pt);
     ShowContextMenu(menu, hwnd, pt);
     DestroyMenu(menu);
@@ -2026,6 +2059,9 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             return 0;
         case ID_TRAY_STARTUP_REMOVE:
             UnregisterStartup();
+            return 0;
+        case ID_OPEN_LOG_FOLDER:
+            OpenLogFolder();
             return 0;
         case ID_POPUP_CLOSE:
             HidePopup();
