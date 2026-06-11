@@ -67,4 +67,4 @@
 - ユーザー向けREADMEは `README.md` と `README.ja.md` です。
 - 手動テストケースは `tests/TEST_CASES.md` と `tests/TEST_CASES.ja.md` です。
 - GitHub Pages用サイトは `docs/index.html` と `docs/index.en.html` です。
-- Release ZIPに含める配布用READMEは、必要に応じて別途生成・更新します。
+- Release ZIPに含める配布用READMEは `README.txt` と `README.ja.txt` です。古めのWindows系テキストエディタでの閲覧を考慮し、どちらもShift-JISで生成します。
