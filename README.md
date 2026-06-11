@@ -99,7 +99,7 @@ When the log grows beyond 256KB, it is rotated to `TrayClockTooltip.log.1`. Log 
 - Standard tooltip suppression depends on Windows behavior. Timing may vary slightly by environment.
 - Hidden tray icon flyout behavior, non-bottom taskbar positions, and multi-monitor or mixed-DPI environments may need additional confirmation.
 - The executable is unsigned, so Windows SmartScreen or security software may show a warning.
-- If you extract a downloaded ZIP with Windows Explorer and the app is blocked, open the ZIP file properties before extracting and check `Unblock`.
+- If you extract a downloaded ZIP with Windows Explorer and the extracted EXE is blocked when starting, open the ZIP file properties before extracting and check `Unblock`.
 - Startup registration uses the current user's Run registry key and does not require administrator rights.
 - Startup menu items are disabled when they would not change the current startup state.
 - When updating the installed EXE from another copy, the app asks already running installed/source-path instances to exit before replacing it.

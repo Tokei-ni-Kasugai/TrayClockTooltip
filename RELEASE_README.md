@@ -22,7 +22,7 @@ Run `TrayClockTooltip.exe`. The app stays in the notification area and does not 
 
 The executable is unsigned, so Windows SmartScreen or security software may show a warning.
 
-If you extract a downloaded ZIP with Windows Explorer and the app is blocked, open the ZIP file properties before extracting and check `Unblock`. This is usually unnecessary when extracting with 7-Zip.
+If you extract a downloaded ZIP with Windows Explorer and the extracted EXE is blocked when starting, open the ZIP file properties before extracting and check `Unblock`. This is usually unnecessary when extracting with 7-Zip.
 
 ## Features
 
