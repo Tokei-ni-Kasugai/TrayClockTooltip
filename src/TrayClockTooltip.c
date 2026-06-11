@@ -26,6 +26,7 @@
 #define ADJUST_ARGUMENT L"--set-local-time"
 #define WAIT_PARENT_ARGUMENT L"--wait-for-parent"
 #define INSTALL_PROMPT_ARGUMENT L"--install-prompt"
+#define OPEN_LOG_FOLDER_ARGUMENT L"--open-log-folder"
 
 #define WM_TRAYICON (WM_APP + 1)
 #define WM_NTP_DONE (WM_APP + 2)
@@ -1360,16 +1361,48 @@ static BOOL CanForceAdjustmentFromMenu(BOOL advancedMenuRequested)
     return advancedMenuRequested && !g_ntpQueryInProgress;
 }
 
-static void OpenLogFolder(void)
+static BOOL OpenLogFolderWithShell(void)
 {
     WCHAR path[MAX_PATH];
 
     if (!BuildLogPath(path, ARRAYSIZE(path))) {
-        ShowNotification(APP_NAME, L"Could not open log folder.", FALSE);
-        return;
+        return FALSE;
     }
     StripFileName(path);
-    if ((INT_PTR)ShellExecuteW(NULL, L"open", path, NULL, NULL, SW_SHOWNORMAL) <= 32) {
+    return (INT_PTR)ShellExecuteW(NULL, L"open", path, NULL, NULL, SW_SHOWNORMAL) > 32;
+}
+
+static BOOL RunOpenLogFolderHelper(void)
+{
+    WCHAR exePath[MAX_PATH];
+    WCHAR commandLine[MAX_PATH + 64];
+    STARTUPINFOW startupInfo;
+    PROCESS_INFORMATION processInfo;
+    DWORD exitCode = 1;
+
+    if (!GetCurrentExePath(exePath, ARRAYSIZE(exePath)) ||
+        swprintf(commandLine, ARRAYSIZE(commandLine), L"\"%ls\" %ls", exePath, OPEN_LOG_FOLDER_ARGUMENT) < 0) {
+        return FALSE;
+    }
+
+    ZeroMemory(&startupInfo, sizeof(startupInfo));
+    ZeroMemory(&processInfo, sizeof(processInfo));
+    startupInfo.cb = sizeof(startupInfo);
+    if (!CreateProcessW(exePath, commandLine, NULL, NULL, FALSE, 0, NULL, NULL,
+        &startupInfo, &processInfo)) {
+        return FALSE;
+    }
+
+    WaitForSingleObject(processInfo.hProcess, INFINITE);
+    GetExitCodeProcess(processInfo.hProcess, &exitCode);
+    CloseHandle(processInfo.hThread);
+    CloseHandle(processInfo.hProcess);
+    return exitCode == 0;
+}
+
+static void OpenLogFolder(void)
+{
+    if (!RunOpenLogFolderHelper()) {
         ShowNotification(APP_NAME, L"Could not open log folder.", FALSE);
     }
 }
@@ -2312,6 +2345,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR cmdLine,
             WSACleanup();
         }
         return exitCode;
+    }
+    if (CommandLineHasOnlyArgument(cmdLine, OPEN_LOG_FOLDER_ARGUMENT)) {
+        return OpenLogFolderWithShell() ? 0 : 1;
     }
 
     WaitForParentIfRequested(cmdLine);
