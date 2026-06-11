@@ -876,29 +876,28 @@ static const WCHAR *NtpEventName(NtpEvent event)
     }
 }
 
-static void LogSimpleEvent(const WCHAR *event, const WCHAR *result, const WCHAR *details)
+static void FormatSimpleLogLine(WCHAR *line, DWORD cch, const WCHAR *event, const WCHAR *result, const WCHAR *details)
 {
     WCHAR timestamp[32];
-    WCHAR line[1024];
     FormatLogTimestamp(timestamp, ARRAYSIZE(timestamp));
     if (details && details[0]) {
-        swprintf(line, ARRAYSIZE(line), L"%ls  %-8ls %-7ls %ls", timestamp, event, result, details);
+        swprintf(line, cch, L"%ls  %-8ls %-7ls %ls", timestamp, event, result, details);
     } else {
-        swprintf(line, ARRAYSIZE(line), L"%ls  %-8ls %-7ls", timestamp, event, result);
+        swprintf(line, cch, L"%ls  %-8ls %-7ls", timestamp, event, result);
     }
+}
+
+static void LogSimpleEvent(const WCHAR *event, const WCHAR *result, const WCHAR *details)
+{
+    WCHAR line[1024];
+    FormatSimpleLogLine(line, ARRAYSIZE(line), event, result, details);
     WriteLogLine(line);
 }
 
 static void LogSimpleUserEvent(const WCHAR *event, const WCHAR *result, const WCHAR *details)
 {
-    WCHAR timestamp[32];
     WCHAR line[1024];
-    FormatLogTimestamp(timestamp, ARRAYSIZE(timestamp));
-    if (details && details[0]) {
-        swprintf(line, ARRAYSIZE(line), L"%ls  %-8ls %-7ls %ls", timestamp, event, result, details);
-    } else {
-        swprintf(line, ARRAYSIZE(line), L"%ls  %-8ls %-7ls", timestamp, event, result);
-    }
+    FormatSimpleLogLine(line, ARRAYSIZE(line), event, result, details);
     WriteUserLogLine(line);
 }
 
