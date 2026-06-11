@@ -60,7 +60,7 @@
 | TM-08 | 高度な強制Adjust表示 | NTP取得後のずれが1秒未満の状態で、Shiftを押しながらトレイアイコンを右クリックする。 | `NTP: refresh`、`Adjust Windows time (admin)`、区切り線、`Exit` が表示される。Adjustを選択すると管理者権限での時刻調整が開始される。 |
 | TM-09 | 問い合わせ中は強制Adjust非表示 | NTP問い合わせ中に、Shiftを押しながらトレイアイコンを右クリックする。 | `NTP: refresh` はグレーアウトし、`Adjust Windows time (admin)` は表示されない。 |
 | TM-10 | Startupサブメニュー表示 | トレイアイコンを右クリックする。 | トレイメニューに `Startup` サブメニューが表示され、`Install for this user`、`Add this EXE to startup`、`Remove startup registration` が含まれる。 |
-| TM-11 | Startupサブメニューのグレーアウト | 自動起動未登録、現在EXEが登録済み、自動起動登録先EXEが存在しない、自動起動登録先EXEが現在EXEと同一、自動起動登録先EXEが現在EXEと異なる、インストール先EXEが現在EXEと一致、Startup登録先がインストール先EXEではない、の各状態でトレイメニューを開く。 | 未登録時は `Remove startup registration` がグレーアウトする。`Add this EXE to startup` は、自動起動未登録、登録先EXEが存在しない、または登録先EXEが現在EXEと異なる場合だけ有効になる。`Install for this user` は、インストール先EXEが存在し、現在EXEと一致し、かつStartup登録先がインストール先EXEの場合だけグレーアウトする。 |
+| TM-11 | Startupサブメニューのグレーアウト | 自動起動未登録、現在EXEが登録済み、自動起動登録先EXEが存在しない、自動起動登録先EXEが現在EXEと同一、自動起動登録先EXEが現在EXEと異なる、インストール先EXEが現在EXEと一致、Startup登録先がインストール先EXEではない、の各状態でトレイメニューを開く。 | 未登録時は `Remove startup registration` がグレーアウトする。`Add this EXE to startup` は、自動起動未登録、登録先EXEが存在しない、または登録先EXEが現在EXEと異なる場合だけ有効になる。`Install for this user` は、現在EXEがすでにインストール先EXEであり、インストール先EXEと一致している場合にグレーアウトする。この状態でStartup登録を戻す場合は `Add this EXE to startup` を使う。 |
 | TM-12 | 高度なログフォルダ表示 | Shiftを押しながらトレイアイコンを右クリックし、`Open log folder` を選択する。 | `Open log folder` はShiftメニューでのみ表示され、現在使用するログフォルダを開く。NTP問い合わせ中でも表示される。 |
 
 ## 自動起動登録
@@ -70,7 +70,7 @@
 | SU-01 | このユーザーにインストール | トレイメニューの `Startup` -> `Install for this user` を選択する。 | 現在のEXEを `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe` にコピーし、コピー結果が現在EXEと一致することを検証し、そのパスを `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TrayClockTooltip` に書き込み、現在プロセス終了後にインストール先EXEを起動する。UACは表示されない。 |
 | SU-02 | 現在のEXEを自動起動登録 | トレイメニューの `Startup` -> `Add this EXE to startup` を選択する。 | 現在のEXEパスを `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TrayClockTooltip` に書き込み、成功通知を表示する。UACは表示されない。 |
 | SU-03 | 自動起動登録削除 | トレイメニューの `Startup` -> `Remove startup registration` を選択する。 | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TrayClockTooltip` を削除し、成功通知を表示する。UACは表示されない。 |
-| SU-04 | 配置済みパスからの再インストール | `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe` から起動し、項目が有効であれば `Install for this user` を選択する。 | 自分自身の上書きで失敗せず、自動起動登録を維持または更新し、成功通知を表示する。インストール先EXEが現在EXEと一致し、Startup登録先もインストール先EXEの場合、メニュー項目はグレーアウトする。 |
+| SU-04 | 配置済みパスからの再インストール | `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe` から起動し、`Startup` サブメニューを開く。 | 現在EXEはすでにインストール済みのため、`Install for this user` はグレーアウトする。Startup登録がない場合は `Add this EXE to startup` が有効になり、自動起動登録を戻せる。 |
 | SU-05 | インストール失敗 | 配置先を利用不能または書き込み不可にして、`Install for this user` を選択する。 | アプリは動作継続し、失敗通知を表示する。既存の自動起動登録は意図的には削除されない。 |
 | SU-06 | インストール先EXEが現在EXEと異なる | `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe` に異なるEXEを配置し、別コピーからトレイメニューを開く。 | `Install for this user` は有効のまま。現在EXEでインストール先を更新できる。 |
 | SU-07 | インストール後の起動引き継ぎ | インストール先以外から `Install for this user` を選択する。 | インストール先EXEは内部的な親プロセス待ち引数付きで起動され、元プロセス終了後に通常起動する。単一起動ミューテックスに弾かれない。 |

@@ -964,6 +964,9 @@ static BOOL CanInstallForCurrentUser(void)
     if (!FileExists(installedPath) || !FilesAreIdentical(currentPath, installedPath)) {
         return TRUE;
     }
+    if (_wcsicmp(currentPath, installedPath) == 0) {
+        return FALSE;
+    }
     if (!GetStartupRegistration(registeredPath, ARRAYSIZE(registeredPath))) {
         return TRUE;
     }
