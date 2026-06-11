@@ -9,7 +9,6 @@
 #include <ws2tcpip.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <wchar.h>
 #include "resource.h"
 
@@ -23,7 +22,10 @@
 
 #define APP_NAME L"TrayClockTooltip"
 #define MUTEX_NAME L"TrayClockTooltip.SingleInstance"
+#define MAIN_WINDOW_CLASS L"TrayClockTooltipMain"
 #define ADJUST_ARGUMENT L"--set-local-time"
+#define WAIT_PARENT_ARGUMENT L"--wait-for-parent"
+#define INSTALL_PROMPT_ARGUMENT L"--install-prompt"
 
 #define WM_TRAYICON (WM_APP + 1)
 #define WM_NTP_DONE (WM_APP + 2)
@@ -37,10 +39,18 @@
 #define ID_TRAY_ADJUST 1002
 #define ID_TRAY_REFRESH_NTP 1003
 #define ID_TRAY_STATUS 1004
+#define ID_TRAY_INSTALL_USER 1005
+#define ID_TRAY_STARTUP_CURRENT 1006
+#define ID_TRAY_STARTUP_REMOVE 1007
+#define ID_OPEN_LOG_FOLDER 1008
 #define ID_POPUP_CLOSE 2001
 #define ID_POPUP_EXIT 2002
 #define ID_POPUP_ADJUST 2003
 
+#define STARTUP_RUN_KEY L"Software\\Microsoft\\Windows\\CurrentVersion\\Run"
+#define EXE_FILE_NAME L"TrayClockTooltip.exe"
+#define LOG_FILE_NAME L"TrayClockTooltip.log"
+#define LOG_MAX_BYTES 262144
 #define NTP_PORT "123"
 #define NTP_PACKET_LENGTH 48
 #define NTP_TIMEOUT_MS 3000
@@ -54,6 +64,7 @@
 #define POPUP_ICON_GAP 8
 #define POPUP_CURSOR_GAP 12
 #define HOVER_PREVIEW_POLL_MS 250
+#define INSTALL_CLOSE_TIMEOUT_MS 5000
 #define TIMESTAMP_BUFFER_CCH 128
 #define TIMESTAMP_HORIZONTAL_PADDING 32
 #define TIMESTAMP_VERTICAL_PADDING 14
@@ -71,12 +82,35 @@ typedef struct AppTheme {
     COLORREF border;
 } AppTheme;
 
+typedef enum NtpEvent {
+    NTP_EVENT_STARTUP = 0,
+    NTP_EVENT_REFRESH,
+    NTP_EVENT_LOGON,
+    NTP_EVENT_UNLOCK
+} NtpEvent;
+
 typedef struct NtpResult {
     BOOL success;
+    NtpEvent event;
     int64_t offsetHns;
     WCHAR source[256];
     WCHAR message[320];
 } NtpResult;
+
+typedef enum InstallResult {
+    INSTALL_RESULT_FAILED = 0,
+    INSTALL_RESULT_INSTALLED,
+    INSTALL_RESULT_INSTALLED_AND_LAUNCHED
+} InstallResult;
+
+typedef struct CloseInstanceContext {
+    const WCHAR *path;
+    BOOL failed;
+} CloseInstanceContext;
+
+typedef struct NtpQueryContext {
+    NtpEvent event;
+} NtpQueryContext;
 
 static HINSTANCE g_instance;
 static HWND g_mainWnd;
@@ -117,6 +151,8 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 static LRESULT CALLBACK PopupWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 static LRESULT CALLBACK NotificationWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 static BOOL IsMenuActive(void);
+static void LogSimpleEvent(const WCHAR *event, const WCHAR *result, const WCHAR *details);
+static void LogNtpResult(NtpEvent event, const NtpResult *result);
 
 static int64_t FileTimeToHns(FILETIME ft)
 {
@@ -433,12 +469,24 @@ static void ShowNotification(const WCHAR *title, const WCHAR *body, BOOL clickAd
     }
 }
 
+static BOOL GetCurrentExePath(WCHAR *path, DWORD cch)
+{
+    DWORD len = GetModuleFileNameW(NULL, path, cch);
+    return len > 0 && len < cch;
+}
+
 static void RunElevatedAdjustment(void)
 {
     WCHAR exePath[MAX_PATH];
     SHELLEXECUTEINFOW sei;
     DWORD exitCode = 1;
-    GetModuleFileNameW(NULL, exePath, ARRAYSIZE(exePath));
+
+    if (!GetCurrentExePath(exePath, ARRAYSIZE(exePath))) {
+        LogSimpleEvent(L"adjust", L"FAILED", L"error=exe_path");
+        ShowNotification(APP_NAME, L"Could not start time adjustment.", FALSE);
+        return;
+    }
+
     ZeroMemory(&sei, sizeof(sei));
     sei.cbSize = sizeof(sei);
     sei.fMask = SEE_MASK_NOCLOSEPROCESS;
@@ -463,7 +511,601 @@ static void RunElevatedAdjustment(void)
         } else {
             ShowNotification(APP_NAME, L"Could not adjust Windows time.", FALSE);
         }
+    } else if (GetLastError() == ERROR_CANCELLED) {
+        LogSimpleEvent(L"adjust", L"CANCEL", L"error=uac");
+    } else {
+        LogSimpleEvent(L"adjust", L"FAILED", L"error=launch");
+        ShowNotification(APP_NAME, L"Could not start time adjustment.", FALSE);
     }
+}
+
+/* Self-placement and startup registration stay in HKCU, so they do not need UAC. */
+static BOOL AppendPathPart(WCHAR *path, DWORD cch, const WCHAR *part)
+{
+    size_t len = wcslen(path);
+    size_t partLen = wcslen(part);
+    BOOL needsSlash = len > 0 && path[len - 1] != L'\\' && path[len - 1] != L'/';
+
+    if (len + (needsSlash ? 1 : 0) + partLen + 1 > cch) {
+        return FALSE;
+    }
+    if (needsSlash) {
+        path[len++] = L'\\';
+        path[len] = L'\0';
+    }
+    wcscat_s(path, cch, part);
+    return TRUE;
+}
+
+static BOOL EnsureInstallDirectory(WCHAR *installDir, DWORD cch)
+{
+    WCHAR localAppData[MAX_PATH];
+    DWORD used = GetEnvironmentVariableW(L"LOCALAPPDATA", localAppData, ARRAYSIZE(localAppData));
+
+    if (used == 0 || used >= ARRAYSIZE(localAppData) || used >= cch) {
+        return FALSE;
+    }
+
+    wcscpy_s(installDir, cch, localAppData);
+    if (!AppendPathPart(installDir, cch, L"Programs")) {
+        return FALSE;
+    }
+    if (!CreateDirectoryW(installDir, NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
+        return FALSE;
+    }
+    if (!AppendPathPart(installDir, cch, APP_NAME)) {
+        return FALSE;
+    }
+    if (!CreateDirectoryW(installDir, NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static BOOL BuildInstalledExePath(WCHAR *path, DWORD cch)
+{
+    DWORD used = GetEnvironmentVariableW(L"LOCALAPPDATA", path, cch);
+    if (used == 0 || used >= cch) {
+        return FALSE;
+    }
+    return AppendPathPart(path, cch, L"Programs") &&
+        AppendPathPart(path, cch, APP_NAME) &&
+        AppendPathPart(path, cch, EXE_FILE_NAME);
+}
+
+static BOOL SetStartupRegistration(const WCHAR *exePath)
+{
+    HKEY key;
+    WCHAR command[MAX_PATH + 3];
+    LSTATUS status;
+
+    if (swprintf(command, ARRAYSIZE(command), L"\"%ls\"", exePath) < 0) {
+        return FALSE;
+    }
+
+    status = RegCreateKeyExW(HKEY_CURRENT_USER, STARTUP_RUN_KEY, 0, NULL, 0, KEY_SET_VALUE, NULL, &key, NULL);
+    if (status != ERROR_SUCCESS) {
+        return FALSE;
+    }
+
+    status = RegSetValueExW(key, APP_NAME, 0, REG_SZ, (const BYTE *)command,
+        (DWORD)((wcslen(command) + 1) * sizeof(WCHAR)));
+    RegCloseKey(key);
+    return status == ERROR_SUCCESS;
+}
+
+static void UnquoteCommandPath(WCHAR *path)
+{
+    size_t len;
+    WCHAR *end;
+
+    while (*path == L' ' || *path == L'\t') {
+        MoveMemory(path, path + 1, (wcslen(path) + 1) * sizeof(WCHAR));
+    }
+
+    if (path[0] == L'"') {
+        end = wcschr(path + 1, L'"');
+        if (end) {
+            *end = L'\0';
+            MoveMemory(path, path + 1, wcslen(path) * sizeof(WCHAR));
+            return;
+        }
+    }
+
+    end = wcspbrk(path, L" \t");
+    if (end) {
+        *end = L'\0';
+    }
+    len = wcslen(path);
+    while (len > 0 && (path[len - 1] == L' ' || path[len - 1] == L'\t')) {
+        path[--len] = L'\0';
+    }
+}
+
+static BOOL GetStartupRegistration(WCHAR *path, DWORD cch)
+{
+    HKEY key;
+    DWORD type = 0;
+    DWORD bytes = cch * sizeof(WCHAR);
+    LSTATUS status = RegOpenKeyExW(HKEY_CURRENT_USER, STARTUP_RUN_KEY, 0, KEY_QUERY_VALUE, &key);
+    if (status != ERROR_SUCCESS) {
+        return FALSE;
+    }
+
+    status = RegQueryValueExW(key, APP_NAME, NULL, &type, (BYTE *)path, &bytes);
+    RegCloseKey(key);
+    if (status != ERROR_SUCCESS || (type != REG_SZ && type != REG_EXPAND_SZ) || bytes < sizeof(WCHAR)) {
+        return FALSE;
+    }
+
+    path[cch - 1] = L'\0';
+    UnquoteCommandPath(path);
+    return path[0] != L'\0';
+}
+
+static BOOL RemoveStartupRegistration(void)
+{
+    HKEY key;
+    LSTATUS status = RegOpenKeyExW(HKEY_CURRENT_USER, STARTUP_RUN_KEY, 0, KEY_SET_VALUE, &key);
+    if (status == ERROR_FILE_NOT_FOUND) {
+        return TRUE;
+    }
+    if (status != ERROR_SUCCESS) {
+        return FALSE;
+    }
+
+    status = RegDeleteValueW(key, APP_NAME);
+    RegCloseKey(key);
+    return status == ERROR_SUCCESS || status == ERROR_FILE_NOT_FOUND;
+}
+
+static BOOL FileExists(const WCHAR *path)
+{
+    DWORD attrs = GetFileAttributesW(path);
+    return attrs != INVALID_FILE_ATTRIBUTES && !(attrs & FILE_ATTRIBUTE_DIRECTORY);
+}
+
+static BOOL BuffersAreEqual(const BYTE *left, const BYTE *right, DWORD bytes)
+{
+    DWORD i;
+    for (i = 0; i < bytes; i++) {
+        if (left[i] != right[i]) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+static BOOL FilesAreIdentical(const WCHAR *leftPath, const WCHAR *rightPath)
+{
+    HANDLE left;
+    HANDLE right;
+    LARGE_INTEGER leftSize;
+    LARGE_INTEGER rightSize;
+    BYTE leftBuffer[4096];
+    BYTE rightBuffer[4096];
+    DWORD leftRead;
+    DWORD rightRead;
+    BOOL identical = FALSE;
+
+    left = CreateFileW(leftPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (left == INVALID_HANDLE_VALUE) {
+        return FALSE;
+    }
+
+    right = CreateFileW(rightPath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (right == INVALID_HANDLE_VALUE) {
+        CloseHandle(left);
+        return FALSE;
+    }
+
+    if (GetFileSizeEx(left, &leftSize) && GetFileSizeEx(right, &rightSize) &&
+        leftSize.QuadPart == rightSize.QuadPart) {
+        identical = TRUE;
+        for (;;) {
+            if (!ReadFile(left, leftBuffer, sizeof(leftBuffer), &leftRead, NULL) ||
+                !ReadFile(right, rightBuffer, sizeof(rightBuffer), &rightRead, NULL) ||
+                leftRead != rightRead ||
+                !BuffersAreEqual(leftBuffer, rightBuffer, leftRead)) {
+                identical = FALSE;
+                break;
+            }
+            if (leftRead == 0) {
+                break;
+            }
+        }
+    }
+
+    CloseHandle(right);
+    CloseHandle(left);
+    return identical;
+}
+
+static void StripFileName(WCHAR *path)
+{
+    WCHAR *slash = wcsrchr(path, L'\\');
+    WCHAR *altSlash = wcsrchr(path, L'/');
+    if (!slash || (altSlash && altSlash > slash)) {
+        slash = altSlash;
+    }
+    if (slash) {
+        *slash = L'\0';
+    }
+}
+
+static BOOL BuildLogPath(WCHAR *path, DWORD cch)
+{
+    WCHAR currentPath[MAX_PATH];
+    WCHAR installedPath[MAX_PATH];
+    DWORD used;
+
+    if (!GetCurrentExePath(currentPath, ARRAYSIZE(currentPath))) {
+        return FALSE;
+    }
+
+    if (BuildInstalledExePath(installedPath, ARRAYSIZE(installedPath)) &&
+        _wcsicmp(currentPath, installedPath) == 0) {
+        used = GetEnvironmentVariableW(L"LOCALAPPDATA", path, cch);
+        if (used == 0 || used >= cch) {
+            return FALSE;
+        }
+        if (!AppendPathPart(path, cch, APP_NAME)) {
+            return FALSE;
+        }
+        if (!CreateDirectoryW(path, NULL) && GetLastError() != ERROR_ALREADY_EXISTS) {
+            return FALSE;
+        }
+        return AppendPathPart(path, cch, LOG_FILE_NAME);
+    }
+
+    wcscpy_s(path, cch, currentPath);
+    StripFileName(path);
+    return AppendPathPart(path, cch, LOG_FILE_NAME);
+}
+
+static void RotateLogIfNeeded(const WCHAR *path)
+{
+    WIN32_FILE_ATTRIBUTE_DATA data;
+    LARGE_INTEGER size;
+    WCHAR backup[MAX_PATH + 3];
+
+    if (!GetFileAttributesExW(path, GetFileExInfoStandard, &data)) {
+        return;
+    }
+    size.HighPart = data.nFileSizeHigh;
+    size.LowPart = data.nFileSizeLow;
+    if (size.QuadPart <= LOG_MAX_BYTES) {
+        return;
+    }
+    if (swprintf(backup, ARRAYSIZE(backup), L"%ls.1", path) < 0) {
+        return;
+    }
+    MoveFileExW(path, backup, MOVEFILE_REPLACE_EXISTING);
+}
+
+static void WriteLogLine(const WCHAR *line)
+{
+    WCHAR path[MAX_PATH];
+    WCHAR withBreak[1024];
+    char utf8[3072];
+    HANDLE file;
+    int bytes;
+    DWORD written;
+
+    if (!BuildLogPath(path, ARRAYSIZE(path))) {
+        return;
+    }
+    RotateLogIfNeeded(path);
+    if (swprintf(withBreak, ARRAYSIZE(withBreak), L"%ls\r\n", line) < 0) {
+        return;
+    }
+    bytes = WideCharToMultiByte(CP_UTF8, 0, withBreak, -1, utf8, sizeof(utf8), NULL, NULL);
+    if (bytes <= 1) {
+        return;
+    }
+
+    file = CreateFileW(path, FILE_APPEND_DATA, FILE_SHARE_READ, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (file == INVALID_HANDLE_VALUE) {
+        return;
+    }
+    WriteFile(file, utf8, (DWORD)(bytes - 1), &written, NULL);
+    CloseHandle(file);
+}
+
+static void FormatLogTimestamp(WCHAR *buffer, DWORD cch)
+{
+    SYSTEMTIME st;
+    GetLocalTime(&st);
+    swprintf(buffer, cch, L"%04u-%02u-%02u %02u:%02u:%02u.%03u",
+        st.wYear, st.wMonth, st.wDay, st.wHour, st.wMinute, st.wSecond, st.wMilliseconds);
+}
+
+static void FormatOffsetValue(int64_t offsetHns, WCHAR *buffer, DWORD cch)
+{
+    WCHAR sign = offsetHns < 0 ? L'-' : L'+';
+    int64_t absHns = offsetHns < 0 ? -offsetHns : offsetHns;
+    int64_t totalMs = (absHns + 5000) / 10000;
+    int64_t seconds = totalMs / 1000;
+    int64_t millis = totalMs % 1000;
+
+    if (seconds < 100) {
+        swprintf(buffer, cch, L"%c%02lld.%03llds", sign, (long long)seconds, (long long)millis);
+    } else {
+        swprintf(buffer, cch, L"%c%lld.%03llds", sign, (long long)seconds, (long long)millis);
+    }
+}
+
+static const WCHAR *NtpEventName(NtpEvent event)
+{
+    switch (event) {
+    case NTP_EVENT_REFRESH:
+        return L"refresh";
+    case NTP_EVENT_LOGON:
+        return L"logon";
+    case NTP_EVENT_UNLOCK:
+        return L"unlock";
+    case NTP_EVENT_STARTUP:
+    default:
+        return L"startup";
+    }
+}
+
+static void LogSimpleEvent(const WCHAR *event, const WCHAR *result, const WCHAR *details)
+{
+    WCHAR timestamp[32];
+    WCHAR line[1024];
+    FormatLogTimestamp(timestamp, ARRAYSIZE(timestamp));
+    if (details && details[0]) {
+        swprintf(line, ARRAYSIZE(line), L"%ls  %-8ls %-7ls %ls", timestamp, event, result, details);
+    } else {
+        swprintf(line, ARRAYSIZE(line), L"%ls  %-8ls %-7ls", timestamp, event, result);
+    }
+    WriteLogLine(line);
+}
+
+static void LogNtpResult(NtpEvent event, const NtpResult *result)
+{
+    WCHAR details[512];
+    WCHAR offset[32];
+    const WCHAR *source = (result && result->source[0]) ? result->source : L"-";
+
+    if (result && result->success) {
+        FormatOffsetValue(result->offsetHns, offset, ARRAYSIZE(offset));
+        swprintf(details, ARRAYSIZE(details), L"offset=%ls  source=%ls", offset, source);
+        LogSimpleEvent(NtpEventName(event), L"OK", details);
+    } else {
+        swprintf(details, ARRAYSIZE(details), L"error=ntp  source=%ls", source);
+        LogSimpleEvent(NtpEventName(event), L"FAILED", details);
+    }
+}
+
+static BOOL IsStartupRegistered(void)
+{
+    WCHAR registeredPath[MAX_PATH];
+    return GetStartupRegistration(registeredPath, ARRAYSIZE(registeredPath));
+}
+
+static BOOL CanRegisterCurrentExeForStartup(void)
+{
+    WCHAR currentPath[MAX_PATH];
+    WCHAR registeredPath[MAX_PATH];
+
+    if (!GetCurrentExePath(currentPath, ARRAYSIZE(currentPath))) {
+        return FALSE;
+    }
+    if (!GetStartupRegistration(registeredPath, ARRAYSIZE(registeredPath))) {
+        return TRUE;
+    }
+    if (_wcsicmp(currentPath, registeredPath) == 0) {
+        return FALSE;
+    }
+    if (!FileExists(registeredPath)) {
+        return TRUE;
+    }
+    return !FilesAreIdentical(currentPath, registeredPath);
+}
+
+static BOOL CanInstallForCurrentUser(void)
+{
+    WCHAR currentPath[MAX_PATH];
+    WCHAR installedPath[MAX_PATH];
+    WCHAR registeredPath[MAX_PATH];
+
+    if (!GetCurrentExePath(currentPath, ARRAYSIZE(currentPath)) ||
+        !BuildInstalledExePath(installedPath, ARRAYSIZE(installedPath))) {
+        return FALSE;
+    }
+    if (!FileExists(installedPath) || !FilesAreIdentical(currentPath, installedPath)) {
+        return TRUE;
+    }
+    if (!GetStartupRegistration(registeredPath, ARRAYSIZE(registeredPath))) {
+        return TRUE;
+    }
+    if (_wcsicmp(registeredPath, installedPath) != 0) {
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static BOOL ShouldPromptForInstall(void)
+{
+    WCHAR currentPath[MAX_PATH];
+    WCHAR installedPath[MAX_PATH];
+
+    return GetCurrentExePath(currentPath, ARRAYSIZE(currentPath)) &&
+        BuildInstalledExePath(installedPath, ARRAYSIZE(installedPath)) &&
+        FileExists(installedPath) &&
+        _wcsicmp(currentPath, installedPath) != 0;
+}
+
+static BOOL IsWindowProcessPath(HWND hwnd, const WCHAR *path, HANDLE *process)
+{
+    DWORD pid = 0;
+    WCHAR processPath[MAX_PATH];
+    DWORD cch = ARRAYSIZE(processPath);
+
+    *process = NULL;
+    GetWindowThreadProcessId(hwnd, &pid);
+    if (pid == 0 || pid == GetCurrentProcessId()) {
+        return FALSE;
+    }
+
+    *process = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!*process) {
+        return FALSE;
+    }
+
+    if (!QueryFullProcessImageNameW(*process, 0, processPath, &cch) ||
+        _wcsicmp(processPath, path) != 0) {
+        CloseHandle(*process);
+        *process = NULL;
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static BOOL IsMainWindowClass(HWND hwnd)
+{
+    WCHAR className[64];
+    return GetClassNameW(hwnd, className, ARRAYSIZE(className)) > 0 &&
+        wcscmp(className, MAIN_WINDOW_CLASS) == 0;
+}
+
+static BOOL CloseInstanceWindow(HWND hwnd, const WCHAR *path)
+{
+    HANDLE process;
+
+    if (!IsMainWindowClass(hwnd)) {
+        return TRUE;
+    }
+    if (!IsWindowProcessPath(hwnd, path, &process)) {
+        return TRUE;
+    }
+
+    PostMessageW(hwnd, WM_CLOSE, 0, 0);
+    if (WaitForSingleObject(process, INSTALL_CLOSE_TIMEOUT_MS) != WAIT_OBJECT_0) {
+        CloseHandle(process);
+        return FALSE;
+    }
+
+    CloseHandle(process);
+    return TRUE;
+}
+
+static BOOL CALLBACK CloseInstanceEnumProc(HWND hwnd, LPARAM lParam)
+{
+    CloseInstanceContext *context = (CloseInstanceContext *)lParam;
+    if (!CloseInstanceWindow(hwnd, context->path)) {
+        context->failed = TRUE;
+        return FALSE;
+    }
+    return TRUE;
+}
+
+static BOOL CloseInstancesForPath(const WCHAR *path)
+{
+    CloseInstanceContext context;
+    context.path = path;
+    context.failed = FALSE;
+    EnumWindows(CloseInstanceEnumProc, (LPARAM)&context);
+    return !context.failed;
+}
+
+static BOOL LaunchInstalledExeAfterExit(const WCHAR *installedPath)
+{
+    WCHAR commandLine[MAX_PATH + 64];
+    STARTUPINFOW startupInfo;
+    PROCESS_INFORMATION processInfo;
+
+    if (swprintf(commandLine, ARRAYSIZE(commandLine), L"\"%ls\" %ls %lu",
+        installedPath, WAIT_PARENT_ARGUMENT, GetCurrentProcessId()) < 0) {
+        return FALSE;
+    }
+
+    ZeroMemory(&startupInfo, sizeof(startupInfo));
+    ZeroMemory(&processInfo, sizeof(processInfo));
+    startupInfo.cb = sizeof(startupInfo);
+    if (!CreateProcessW(installedPath, commandLine, NULL, NULL, FALSE, 0, NULL, NULL,
+        &startupInfo, &processInfo)) {
+        return FALSE;
+    }
+    CloseHandle(processInfo.hThread);
+    CloseHandle(processInfo.hProcess);
+    return TRUE;
+}
+
+static InstallResult InstallForCurrentUserCore(void)
+{
+    WCHAR currentPath[MAX_PATH];
+    WCHAR installedPath[MAX_PATH];
+
+    if (!GetCurrentExePath(currentPath, ARRAYSIZE(currentPath)) ||
+        !EnsureInstallDirectory(installedPath, ARRAYSIZE(installedPath)) ||
+        !AppendPathPart(installedPath, ARRAYSIZE(installedPath), EXE_FILE_NAME)) {
+        return INSTALL_RESULT_FAILED;
+    }
+
+    if (_wcsicmp(currentPath, installedPath) != 0) {
+        if (!CloseInstancesForPath(installedPath) || !CloseInstancesForPath(currentPath) ||
+            !CopyFileW(currentPath, installedPath, FALSE)) {
+            return INSTALL_RESULT_FAILED;
+        }
+    }
+
+    if (!FilesAreIdentical(currentPath, installedPath)) {
+        return INSTALL_RESULT_FAILED;
+    }
+
+    if (!SetStartupRegistration(installedPath)) {
+        return INSTALL_RESULT_FAILED;
+    }
+
+    if (_wcsicmp(currentPath, installedPath) == 0) {
+        return INSTALL_RESULT_INSTALLED;
+    }
+
+    if (!LaunchInstalledExeAfterExit(installedPath)) {
+        return INSTALL_RESULT_FAILED;
+    }
+
+    return INSTALL_RESULT_INSTALLED_AND_LAUNCHED;
+}
+
+static void InstallForCurrentUser(void)
+{
+    InstallResult result = InstallForCurrentUserCore();
+
+    if (result == INSTALL_RESULT_FAILED) {
+        ShowNotification(APP_NAME, L"Could not install for this user.", FALSE);
+        return;
+    }
+    if (result == INSTALL_RESULT_INSTALLED) {
+        ShowNotification(APP_NAME, L"Installed for this user and registered for startup.", FALSE);
+        return;
+    }
+
+    PostQuitMessage(0);
+}
+
+static void RegisterCurrentExeForStartup(void)
+{
+    WCHAR currentPath[MAX_PATH];
+    if (!GetCurrentExePath(currentPath, ARRAYSIZE(currentPath)) ||
+        !SetStartupRegistration(currentPath)) {
+        ShowNotification(APP_NAME, L"Could not register startup.", FALSE);
+        return;
+    }
+    ShowNotification(APP_NAME, L"This EXE was registered for startup.", FALSE);
+}
+
+static void UnregisterStartup(void)
+{
+    if (!RemoveStartupRegistration()) {
+        ShowNotification(APP_NAME, L"Could not remove startup registration.", FALSE);
+        return;
+    }
+    ShowNotification(APP_NAME, L"Startup registration was removed.", FALSE);
 }
 
 static void TrimNtpSource(WCHAR *source)
@@ -574,10 +1216,11 @@ static BOOL QueryNtpOffset(const WCHAR *source, int64_t *offsetHns)
     return ok;
 }
 
-static NtpResult GetWindowsTimeOffset(void)
+static NtpResult GetWindowsTimeOffset(NtpEvent event)
 {
     NtpResult result;
     ZeroMemory(&result, sizeof(result));
+    result.event = event;
     if (!ReadConfiguredSource(result.source, ARRAYSIZE(result.source))) {
         return result;
     }
@@ -591,10 +1234,13 @@ static NtpResult GetWindowsTimeOffset(void)
 
 static DWORD WINAPI NtpThreadProc(LPVOID param)
 {
+    NtpQueryContext *context = (NtpQueryContext *)param;
     NtpResult *result = (NtpResult *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(NtpResult));
-    (void)param;
     if (result) {
-        *result = GetWindowsTimeOffset();
+        *result = GetWindowsTimeOffset(context ? context->event : NTP_EVENT_STARTUP);
+    }
+    if (context) {
+        HeapFree(GetProcessHeap(), 0, context);
     }
     if (!PostMessageW(g_mainWnd, WM_NTP_DONE, 0, (LPARAM)result) && result) {
         HeapFree(GetProcessHeap(), 0, result);
@@ -604,17 +1250,30 @@ static DWORD WINAPI NtpThreadProc(LPVOID param)
 
 static BOOL SetLocalTimeFromNtp(void)
 {
-    NtpResult result = GetWindowsTimeOffset();
+    NtpResult result = GetWindowsTimeOffset(NTP_EVENT_REFRESH);
     FILETIME utcFt;
     FILETIME localFt;
     SYSTEMTIME localSt;
+    WCHAR offset[32];
+    WCHAR details[512];
+    const WCHAR *source = result.source[0] ? result.source : L"-";
     if (!result.success) {
+        swprintf(details, ARRAYSIZE(details), L"error=ntp  source=%ls", source);
+        LogSimpleEvent(L"adjust", L"FAILED", details);
         return FALSE;
     }
     utcFt = HnsToFileTime(GetUtcNowHns() + result.offsetHns);
     FileTimeToLocalFileTime(&utcFt, &localFt);
     FileTimeToSystemTime(&localFt, &localSt);
-    return SetLocalTime(&localSt);
+    FormatOffsetValue(result.offsetHns, offset, ARRAYSIZE(offset));
+    if (SetLocalTime(&localSt)) {
+        swprintf(details, ARRAYSIZE(details), L"offset=%ls  source=%ls", offset, source);
+        LogSimpleEvent(L"adjust", L"OK", details);
+        return TRUE;
+    }
+    swprintf(details, ARRAYSIZE(details), L"offset=%ls  error=set_time  source=%ls", offset, source);
+    LogSimpleEvent(L"adjust", L"FAILED", details);
+    return FALSE;
 }
 
 static void ApplyNtpResult(const NtpResult *result)
@@ -622,6 +1281,7 @@ static void ApplyNtpResult(const NtpResult *result)
     BOOL notifySuccessIfNoDrift = g_notifyNtpSuccessIfNoDrift;
     g_notifyNtpSuccessIfNoDrift = FALSE;
     g_ntpQueryInProgress = FALSE;
+    LogNtpResult(result ? result->event : NTP_EVENT_STARTUP, result);
 
     if (!result || !result->success) {
         g_clockOffsetHns = 0;
@@ -653,9 +1313,10 @@ static void ApplyNtpResult(const NtpResult *result)
     }
 }
 
-static void StartNtpLoad(BOOL notifySuccessIfNoDrift)
+static void StartNtpLoad(NtpEvent event, BOOL notifySuccessIfNoDrift)
 {
     HANDLE thread;
+    NtpQueryContext *context;
     if (g_ntpQueryInProgress) {
         return;
     }
@@ -663,13 +1324,24 @@ static void StartNtpLoad(BOOL notifySuccessIfNoDrift)
     g_ntpQueryInProgress = TRUE;
     g_notifyNtpSuccessIfNoDrift = notifySuccessIfNoDrift;
     SetTrayNtpMenuText(NULL);
-    thread = CreateThread(NULL, 0, NtpThreadProc, NULL, 0, NULL);
-    if (thread) {
-        CloseHandle(thread);
-    } else {
+    context = (NtpQueryContext *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(NtpQueryContext));
+    if (!context) {
         g_ntpQueryInProgress = FALSE;
         g_notifyNtpSuccessIfNoDrift = FALSE;
         SetTrayNtpMenuText(NULL);
+        LogSimpleEvent(NtpEventName(event), L"FAILED", L"error=memory");
+        return;
+    }
+    context->event = event;
+    thread = CreateThread(NULL, 0, NtpThreadProc, context, 0, NULL);
+    if (thread) {
+        CloseHandle(thread);
+    } else {
+        HeapFree(GetProcessHeap(), 0, context);
+        g_ntpQueryInProgress = FALSE;
+        g_notifyNtpSuccessIfNoDrift = FALSE;
+        SetTrayNtpMenuText(NULL);
+        LogSimpleEvent(NtpEventName(event), L"FAILED", L"error=thread");
     }
 }
 
@@ -678,9 +1350,28 @@ static BOOL IsShiftPressed(void)
     return (GetKeyState(VK_SHIFT) & 0x8000) != 0;
 }
 
-static BOOL CanForceAdjustmentFromMenu(void)
+static BOOL IsAdvancedMenuRequested(void)
 {
-    return IsShiftPressed() && !g_ntpQueryInProgress;
+    return IsShiftPressed();
+}
+
+static BOOL CanForceAdjustmentFromMenu(BOOL advancedMenuRequested)
+{
+    return advancedMenuRequested && !g_ntpQueryInProgress;
+}
+
+static void OpenLogFolder(void)
+{
+    WCHAR path[MAX_PATH];
+
+    if (!BuildLogPath(path, ARRAYSIZE(path))) {
+        ShowNotification(APP_NAME, L"Could not open log folder.", FALSE);
+        return;
+    }
+    StripFileName(path);
+    if ((INT_PTR)ShellExecuteW(NULL, L"open", path, NULL, NULL, SW_SHOWNORMAL) <= 32) {
+        ShowNotification(APP_NAME, L"Could not open log folder.", FALSE);
+    }
 }
 
 static void AppendTrayRefreshMenuItem(HMENU menu)
@@ -755,29 +1446,56 @@ static BOOL DrawTrayStatusMenuItem(const DRAWITEMSTRUCT *draw)
     return TRUE;
 }
 
-static HMENU CreateTrayMenu(BOOL forceAdjustmentAvailable)
+static HMENU CreateTrayMenu(BOOL advancedMenuRequested)
 {
     HMENU menu = CreatePopupMenu();
+    HMENU startupMenu = CreatePopupMenu();
+    BOOL startupRegistered = IsStartupRegistered();
+    BOOL canRegisterCurrentExe = CanRegisterCurrentExeForStartup();
+    BOOL canInstallForCurrentUser = CanInstallForCurrentUser();
+    BOOL forceAdjustmentAvailable = CanForceAdjustmentFromMenu(advancedMenuRequested);
     if (g_adjustmentAvailable) {
         AppendMenuW(menu, MF_OWNERDRAW | MF_DISABLED, ID_TRAY_STATUS, NULL);
         AppendMenuW(menu, MF_STRING, ID_TRAY_ADJUST, L"Adjust Windows time (admin)");
+        if (advancedMenuRequested) {
+            AppendMenuW(menu, MF_STRING, ID_OPEN_LOG_FOLDER, L"Open log folder");
+        }
         AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     } else {
         AppendTrayRefreshMenuItem(menu);
         if (forceAdjustmentAvailable) {
             AppendMenuW(menu, MF_STRING, ID_TRAY_ADJUST, L"Adjust Windows time (admin)");
         }
+        if (advancedMenuRequested) {
+            AppendMenuW(menu, MF_STRING, ID_OPEN_LOG_FOLDER, L"Open log folder");
+        }
+        AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
+    }
+    if (startupMenu) {
+        AppendMenuW(startupMenu, canInstallForCurrentUser ? MF_STRING : MF_STRING | MF_GRAYED,
+            ID_TRAY_INSTALL_USER, L"Install for this user");
+        AppendMenuW(startupMenu, canRegisterCurrentExe ? MF_STRING : MF_STRING | MF_GRAYED,
+            ID_TRAY_STARTUP_CURRENT, L"Add this EXE to startup");
+        AppendMenuW(startupMenu, startupRegistered ? MF_STRING : MF_STRING | MF_GRAYED,
+            ID_TRAY_STARTUP_REMOVE, L"Remove startup registration");
+        AppendMenuW(menu, MF_POPUP, (UINT_PTR)startupMenu, L"Startup");
         AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     }
     AppendMenuW(menu, MF_STRING, ID_TRAY_EXIT, L"Exit");
     return menu;
 }
 
-static HMENU CreatePopupMenuForClock(BOOL forceAdjustmentAvailable)
+static HMENU CreatePopupMenuForClock(BOOL advancedMenuRequested)
 {
     HMENU menu = CreatePopupMenu();
+    BOOL forceAdjustmentAvailable = CanForceAdjustmentFromMenu(advancedMenuRequested);
     if (g_adjustmentAvailable || forceAdjustmentAvailable) {
         AppendMenuW(menu, MF_STRING, ID_POPUP_ADJUST, L"Adjust Windows time (admin)");
+    }
+    if (advancedMenuRequested) {
+        AppendMenuW(menu, MF_STRING, ID_OPEN_LOG_FOLDER, L"Open log folder");
+    }
+    if (g_adjustmentAvailable || forceAdjustmentAvailable || advancedMenuRequested) {
         AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     }
     AppendMenuW(menu, MF_STRING, ID_POPUP_CLOSE, L"Close");
@@ -1071,7 +1789,7 @@ static void HideHoverPreviewIfCursorAway(void)
 static void ShowTrayMenu(void)
 {
     POINT pt;
-    HMENU menu = CreateTrayMenu(CanForceAdjustmentFromMenu());
+    HMENU menu = CreateTrayMenu(IsAdvancedMenuRequested());
     g_lastTrayMenuTick = GetTickCount();
     GetCursorPos(&pt);
     ShowContextMenu(menu, g_mainWnd, pt);
@@ -1082,7 +1800,7 @@ static void ShowTrayMenu(void)
 static void ShowClockMenu(HWND hwnd)
 {
     POINT pt;
-    HMENU menu = CreatePopupMenuForClock(CanForceAdjustmentFromMenu());
+    HMENU menu = CreatePopupMenuForClock(IsAdvancedMenuRequested());
     GetCursorPos(&pt);
     ShowContextMenu(menu, hwnd, pt);
     DestroyMenu(menu);
@@ -1197,7 +1915,7 @@ static BOOL RegisterClasses(void)
     ZeroMemory(&wc, sizeof(wc));
     wc.hInstance = g_instance;
     wc.lpfnWndProc = MainWndProc;
-    wc.lpszClassName = L"TrayClockTooltipMain";
+    wc.lpszClassName = MAIN_WINDOW_CLASS;
     wc.hIcon = LoadIconW(g_instance, MAKEINTRESOURCEW(IDI_APP));
     wc.hCursor = LoadCursorW(NULL, IDC_ARROW);
     if (!RegisterClassW(&wc)) return FALSE;
@@ -1265,7 +1983,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         }
         EnsureTrayIcon();
         ScheduleNextTick();
-        StartNtpLoad(FALSE);
+        StartNtpLoad(NTP_EVENT_STARTUP, FALSE);
         return 0;
 
     case WM_TIMER:
@@ -1331,7 +2049,19 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             RunElevatedAdjustment();
             return 0;
         case ID_TRAY_REFRESH_NTP:
-            StartNtpLoad(TRUE);
+            StartNtpLoad(NTP_EVENT_REFRESH, TRUE);
+            return 0;
+        case ID_TRAY_INSTALL_USER:
+            InstallForCurrentUser();
+            return 0;
+        case ID_TRAY_STARTUP_CURRENT:
+            RegisterCurrentExeForStartup();
+            return 0;
+        case ID_TRAY_STARTUP_REMOVE:
+            UnregisterStartup();
+            return 0;
+        case ID_OPEN_LOG_FOLDER:
+            OpenLogFolder();
             return 0;
         case ID_POPUP_CLOSE:
             HidePopup();
@@ -1368,8 +2098,10 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
         return 0;
 
     case WM_WTSSESSION_CHANGE:
-        if (wParam == WTS_SESSION_LOGON || wParam == WTS_SESSION_UNLOCK) {
-            StartNtpLoad(FALSE);
+        if (wParam == WTS_SESSION_LOGON) {
+            StartNtpLoad(NTP_EVENT_LOGON, FALSE);
+        } else if (wParam == WTS_SESSION_UNLOCK) {
+            StartNtpLoad(NTP_EVENT_UNLOCK, FALSE);
         }
         return 0;
 
@@ -1467,6 +2199,104 @@ static LRESULT CALLBACK NotificationWndProc(HWND hwnd, UINT msg, WPARAM wParam, 
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
+static BOOL CommandLineHasOnlyArgument(PWSTR cmdLine, const WCHAR *argument)
+{
+    size_t len = wcslen(argument);
+    while (*cmdLine == L' ' || *cmdLine == L'\t') {
+        cmdLine++;
+    }
+    if (wcsncmp(cmdLine, argument, len) != 0) {
+        return FALSE;
+    }
+    cmdLine += len;
+    while (*cmdLine == L' ' || *cmdLine == L'\t') {
+        cmdLine++;
+    }
+    return *cmdLine == L'\0';
+}
+
+static void WaitForParentIfRequested(PWSTR cmdLine)
+{
+    DWORD parentPid = 0;
+    const WCHAR *cursor;
+    HANDLE parent;
+    size_t prefixLen = wcslen(WAIT_PARENT_ARGUMENT);
+
+    if (wcsncmp(cmdLine, WAIT_PARENT_ARGUMENT, prefixLen) != 0 ||
+        (cmdLine[prefixLen] != L'\0' && cmdLine[prefixLen] != L' ' && cmdLine[prefixLen] != L'\t')) {
+        return;
+    }
+
+    cursor = cmdLine + prefixLen;
+    while (*cursor == L' ' || *cursor == L'\t') {
+        cursor++;
+    }
+    while (*cursor >= L'0' && *cursor <= L'9') {
+        parentPid = parentPid * 10 + (DWORD)(*cursor - L'0');
+        cursor++;
+    }
+    if (parentPid == 0) {
+        return;
+    }
+
+    parent = OpenProcess(SYNCHRONIZE, FALSE, parentPid);
+    if (parent) {
+        WaitForSingleObject(parent, INFINITE);
+        CloseHandle(parent);
+    }
+}
+
+static BOOL CloseExistingInstancesForPortableRun(void)
+{
+    WCHAR currentPath[MAX_PATH];
+    WCHAR installedPath[MAX_PATH];
+    if (!GetCurrentExePath(currentPath, ARRAYSIZE(currentPath)) ||
+        !BuildInstalledExePath(installedPath, ARRAYSIZE(installedPath))) {
+        return FALSE;
+    }
+    return CloseInstancesForPath(installedPath) && CloseInstancesForPath(currentPath);
+}
+
+static BOOL HandleInstallPromptIfRequested(PWSTR cmdLine)
+{
+    int choice;
+    InstallResult result;
+
+    if (!CommandLineHasOnlyArgument(cmdLine, INSTALL_PROMPT_ARGUMENT) || !ShouldPromptForInstall()) {
+        return TRUE;
+    }
+
+    choice = MessageBoxW(NULL,
+        L"An installed TrayClockTooltip EXE already exists.\n\n"
+        L"Yes: install this EXE and restart from the installed location\n"
+        L"No: close existing app instances and run this EXE as portable\n"
+        L"Cancel: do not start",
+        APP_NAME,
+        MB_ICONQUESTION | MB_YESNOCANCEL | MB_DEFBUTTON1 | MB_SETFOREGROUND | MB_TOPMOST);
+
+    if (choice == IDNO) {
+        if (!CloseExistingInstancesForPortableRun()) {
+            MessageBoxW(NULL, L"Could not close the running app.", APP_NAME, MB_ICONERROR | MB_OK);
+            return FALSE;
+        }
+        return TRUE;
+    }
+    if (choice != IDYES) {
+        return FALSE;
+    }
+
+    result = InstallForCurrentUserCore();
+    if (result == INSTALL_RESULT_INSTALLED_AND_LAUNCHED) {
+        return FALSE;
+    }
+    if (result == INSTALL_RESULT_INSTALLED) {
+        return TRUE;
+    }
+
+    MessageBoxW(NULL, L"Could not install for this user.", APP_NAME, MB_ICONERROR | MB_OK);
+    return FALSE;
+}
+
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR cmdLine, int nCmdShow)
 {
     HANDLE mutex;
@@ -1475,13 +2305,18 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR cmdLine,
     (void)hPrevInstance;
     (void)nCmdShow;
 
-    if (wcscmp(cmdLine, ADJUST_ARGUMENT) == 0) {
+    if (CommandLineHasOnlyArgument(cmdLine, ADJUST_ARGUMENT)) {
         int exitCode = 1;
         if (WSAStartup(MAKEWORD(2, 2), &wsa) == 0) {
             exitCode = SetLocalTimeFromNtp() ? 0 : 1;
             WSACleanup();
         }
         return exitCode;
+    }
+
+    WaitForParentIfRequested(cmdLine);
+    if (!HandleInstallPromptIfRequested(cmdLine)) {
+        return 0;
     }
 
     mutex = CreateMutexW(NULL, TRUE, MUTEX_NAME);
