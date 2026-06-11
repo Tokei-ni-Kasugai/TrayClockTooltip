@@ -10,6 +10,7 @@
 - `README.txt`
 - `README.ja.txt`
 - `CHANGELOG.txt`
+- `CHANGELOG.ja.txt`
 - `LICENSE`
 
 ## はじめに

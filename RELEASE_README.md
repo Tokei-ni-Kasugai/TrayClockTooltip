@@ -10,6 +10,7 @@ Version: `1.1.1.0`
 - `README.txt`
 - `README.ja.txt`
 - `CHANGELOG.txt`
+- `CHANGELOG.ja.txt`
 - `LICENSE`
 
 ## Quick Start
