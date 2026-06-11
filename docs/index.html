@@ -154,6 +154,15 @@
       line-height: 1.6;
     }
 
+    .download-note p {
+      margin: 0;
+    }
+
+    .download-note ol {
+      margin: 6px 0 0;
+      padding-left: 20px;
+    }
+
     .button {
       display: inline-flex;
       align-items: center;
@@ -525,7 +534,14 @@
           <a class="button primary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-1.1.2.zip">Download ZIP</a>
           <a class="button secondary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-source.zip">Source ZIP</a>
         </div>
-        <p class="download-note">Windows標準のエクスプローラーで展開する場合は、展開前にZIPのプロパティで<span class="nowrap">「許可する」</span>を確認してください。</p>
+        <div class="download-note">
+          <p>Windowsのセキュリティ機能により、ファイルの展開がブロックされることがあります。</p>
+          <ol>
+            <li>ダウンロードしたZIPファイルを右クリックし、プロパティを開く</li>
+            <li>全般タブ下部のセキュリティで<span class="nowrap">「許可する」</span>にチェック</li>
+            <li>OKをクリックして閉じる</li>
+          </ol>
+        </div>
         <div class="hero-meta">
           <span><span class="nowrap">Windows 11</span>対応</span>
           <span>軽量ネイティブ</span>
@@ -651,8 +667,8 @@
           <p><span class="nowrap">Release ZIP</span>には<span class="nowrap">EXE</span>、<span class="nowrap">README</span>、<span class="nowrap">LICENSE</span>を含めています。EXEをそのまま置いて使うポータブル運用も、トレイメニューからこのユーザー向けに配置して自動起動登録する運用も選べます。</p>
           <div class="specs">
             <div class="spec">対応環境: <span class="nowrap">Windows 11</span></div>
-            <div class="spec">無署名のため<span class="nowrap">SmartScreen</span>警告の可能性あり</div>
             <div class="spec"><span class="nowrap">SHA256</span>で整合性確認</div>
+            <div class="spec">無署名のため<span class="nowrap">SmartScreen</span>警告の可能性あり</div>
           </div>
         </div>
         <div class="download-side">

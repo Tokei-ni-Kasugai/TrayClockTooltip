@@ -154,6 +154,15 @@
       line-height: 1.6;
     }
 
+    .download-note p {
+      margin: 0;
+    }
+
+    .download-note ol {
+      margin: 6px 0 0;
+      padding-left: 20px;
+    }
+
     .button {
       display: inline-flex;
       align-items: center;
@@ -525,7 +534,14 @@
           <a class="button primary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-1.1.2.zip">Download ZIP</a>
           <a class="button secondary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-source.zip">Source ZIP</a>
         </div>
-        <p class="download-note">When extracting with Windows Explorer, open the ZIP properties before extracting and check <span class="nowrap">Unblock</span>.</p>
+        <div class="download-note">
+          <p>Windows security may block files extracted from a downloaded ZIP.</p>
+          <ol>
+            <li>Right-click the downloaded ZIP file and open Properties.</li>
+            <li>On the General tab, check <span class="nowrap">Unblock</span> in the Security section.</li>
+            <li>Click OK to close the dialog.</li>
+          </ol>
+        </div>
         <div class="hero-meta">
           <span><span class="nowrap">Windows 11</span></span>
           <span>Lightweight native app</span>
@@ -651,8 +667,8 @@
           <p>The <span class="nowrap">Release ZIP</span> contains the <span class="nowrap">EXE</span>, <span class="nowrap">README</span>, and <span class="nowrap">LICENSE</span>. You can run the EXE as a portable app, or use the tray menu to place it for the current user and register startup.</p>
           <div class="specs">
             <div class="spec">Target: <span class="nowrap">Windows 11</span></div>
-            <div class="spec">Unsigned; <span class="nowrap">SmartScreen</span> may warn</div>
             <div class="spec">Verify downloads with <span class="nowrap">SHA256</span></div>
+            <div class="spec">Unsigned; <span class="nowrap">SmartScreen</span> may warn</div>
           </div>
         </div>
         <div class="download-side">
