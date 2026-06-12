@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://tokei-ni-kasugai.github.io/TrayClockTooltip/sitemap.xml
