@@ -24,6 +24,7 @@ Version: `1.2.0.0`
 - Time adjustment asks for UAC confirmation, then re-queries NTP and applies the freshly acquired time.
 - Time adjustment success or adjustment failure is shown with a custom notification. UAC cancellation stays silent.
 - Custom notifications close after 5 seconds.
+- Notification text is Japanese on Japanese Windows UI and English otherwise.
 - Floating clock and notification colors follow Windows mode.
 - Pinned floating clock shows small side indicators.
 - Date and time follow the Windows user format and are displayed as `date time`.

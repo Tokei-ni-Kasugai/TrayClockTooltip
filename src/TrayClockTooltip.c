@@ -115,6 +115,23 @@ typedef struct NotifyThreshold {
     int seconds;
 } NotifyThreshold;
 
+typedef enum NotificationTextId {
+    NOTIFY_TEXT_REFRESH_OFF = 0,
+    NOTIFY_TEXT_REFRESH_WITHIN_THRESHOLD,
+    NOTIFY_TEXT_ADJUST_START_FAILED,
+    NOTIFY_TEXT_ADJUST_OK,
+    NOTIFY_TEXT_ADJUST_FAILED,
+    NOTIFY_TEXT_THRESHOLD_UPDATE_FAILED,
+    NOTIFY_TEXT_INSTALL_FAILED,
+    NOTIFY_TEXT_INSTALL_OK,
+    NOTIFY_TEXT_STARTUP_REGISTER_FAILED,
+    NOTIFY_TEXT_STARTUP_REGISTER_OK,
+    NOTIFY_TEXT_STARTUP_REMOVE_FAILED,
+    NOTIFY_TEXT_STARTUP_REMOVE_OK,
+    NOTIFY_TEXT_NTP_FAILED,
+    NOTIFY_TEXT_OPEN_LOG_FAILED
+} NotificationTextId;
+
 typedef struct CloseInstanceContext {
     const WCHAR *path;
     BOOL failed;
@@ -560,12 +577,68 @@ static BOOL CanAdjustFromNormalMenu(void)
     return g_adjustmentAvailable || (g_notifyThreshold.off && g_ntpTimeAvailable && !g_ntpQueryInProgress);
 }
 
+static BOOL IsJapaneseUiLanguage(void)
+{
+    return PRIMARYLANGID(GetUserDefaultUILanguage()) == LANG_JAPANESE;
+}
+
+static const WCHAR *NotificationText(NotificationTextId id)
+{
+    BOOL ja = IsJapaneseUiLanguage();
+    switch (id) {
+    case NOTIFY_TEXT_REFRESH_OFF:
+        return ja ? L"NTP時刻を更新しました。自動のずれ通知はオフです。"
+                  : L"NTP time was refreshed. Automatic drift notifications are off.";
+    case NOTIFY_TEXT_REFRESH_WITHIN_THRESHOLD:
+        return ja ? L"NTP時刻を更新しました。Windows時計は通知しきい値内です。"
+                  : L"NTP time was refreshed. Windows time is within the notification threshold.";
+    case NOTIFY_TEXT_ADJUST_START_FAILED:
+        return ja ? L"時刻調整を開始できませんでした。"
+                  : L"Could not start time adjustment.";
+    case NOTIFY_TEXT_ADJUST_OK:
+        return ja ? L"Windows時刻を調整しました。"
+                  : L"Windows time was adjusted.";
+    case NOTIFY_TEXT_ADJUST_FAILED:
+        return ja ? L"Windows時刻を調整できませんでした。"
+                  : L"Could not adjust Windows time.";
+    case NOTIFY_TEXT_THRESHOLD_UPDATE_FAILED:
+        return ja ? L"スタートアップの通知しきい値を更新できませんでした。"
+                  : L"Could not update startup notification threshold.";
+    case NOTIFY_TEXT_INSTALL_FAILED:
+        return ja ? L"このユーザー向けにインストールできませんでした。"
+                  : L"Could not install for this user.";
+    case NOTIFY_TEXT_INSTALL_OK:
+        return ja ? L"このユーザー向けにインストールし、スタートアップに登録しました。"
+                  : L"Installed for this user and registered for startup.";
+    case NOTIFY_TEXT_STARTUP_REGISTER_FAILED:
+        return ja ? L"スタートアップに登録できませんでした。"
+                  : L"Could not register startup.";
+    case NOTIFY_TEXT_STARTUP_REGISTER_OK:
+        return ja ? L"このEXEをスタートアップに登録しました。"
+                  : L"This EXE was registered for startup.";
+    case NOTIFY_TEXT_STARTUP_REMOVE_FAILED:
+        return ja ? L"スタートアップ登録を削除できませんでした。"
+                  : L"Could not remove startup registration.";
+    case NOTIFY_TEXT_STARTUP_REMOVE_OK:
+        return ja ? L"スタートアップ登録を削除しました。"
+                  : L"Startup registration was removed.";
+    case NOTIFY_TEXT_NTP_FAILED:
+        return ja ? L"NTP時刻を取得できませんでした。アプリの時計はWindowsのシステム時計を使用しています。"
+                  : L"Could not obtain NTP time. The app clock is using the Windows system clock.";
+    case NOTIFY_TEXT_OPEN_LOG_FAILED:
+        return ja ? L"ログフォルダを開けませんでした。"
+                  : L"Could not open log folder.";
+    default:
+        return APP_NAME;
+    }
+}
+
 static void ShowManualRefreshSuccessNotification(void)
 {
     if (g_notifyThreshold.off) {
-        ShowNotification(APP_NAME, L"NTP time was refreshed. Automatic drift notifications are off.", FALSE);
+        ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_REFRESH_OFF), FALSE);
     } else {
-        ShowNotification(APP_NAME, L"NTP time was refreshed. Windows time is within the notification threshold.", FALSE);
+        ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_REFRESH_WITHIN_THRESHOLD), FALSE);
     }
 }
 
@@ -573,9 +646,15 @@ static void ShowDriftNotification(int64_t offsetHns)
 {
     WCHAR body[320];
     double seconds = (double)llabs(offsetHns) / (double)HNS_PER_SECOND;
-    swprintf(body, ARRAYSIZE(body),
-        L"Windows time differs by %.3f seconds. The app clock is using NTP time.",
-        seconds);
+    if (IsJapaneseUiLanguage()) {
+        swprintf(body, ARRAYSIZE(body),
+            L"Windows時計は%.3f秒ずれています。アプリの時計はNTP時刻を使用しています。",
+            seconds);
+    } else {
+        swprintf(body, ARRAYSIZE(body),
+            L"Windows time differs by %.3f seconds. The app clock is using NTP time.",
+            seconds);
+    }
     ShowNotification(APP_NAME, body, TRUE);
 }
 
@@ -632,7 +711,7 @@ static void RunElevatedAdjustment(void)
 
     if (!GetCurrentExePath(exePath, ARRAYSIZE(exePath))) {
         LogSimpleEvent(L"adjust", L"FAILED", L"error=exe_path");
-        ShowNotification(APP_NAME, L"Could not start time adjustment.", FALSE);
+        ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_ADJUST_START_FAILED), FALSE);
         return;
     }
 
@@ -658,15 +737,15 @@ static void RunElevatedAdjustment(void)
             SetTrayNtpMenuText(NULL);
             HideNotification();
             UpdateClockDisplays();
-            ShowNotification(APP_NAME, L"Windows time was adjusted.", FALSE);
+            ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_ADJUST_OK), FALSE);
         } else {
-            ShowNotification(APP_NAME, L"Could not adjust Windows time.", FALSE);
+            ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_ADJUST_FAILED), FALSE);
         }
     } else if (GetLastError() == ERROR_CANCELLED) {
         LogSimpleEvent(L"adjust", L"CANCEL", L"error=uac");
     } else {
         LogSimpleEvent(L"adjust", L"FAILED", L"error=launch");
-        ShowNotification(APP_NAME, L"Could not start time adjustment.", FALSE);
+        ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_ADJUST_START_FAILED), FALSE);
     }
 }
 
@@ -863,7 +942,7 @@ static void SetNotifyThreshold(NotifyThreshold threshold)
         }
     }
     if (!UpdateStartupRegistrationThreshold()) {
-        ShowNotification(APP_NAME, L"Could not update startup notification threshold.", FALSE);
+        ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_THRESHOLD_UPDATE_FAILED), FALSE);
     }
 }
 
@@ -1415,11 +1494,11 @@ static void InstallForCurrentUser(void)
     InstallResult result = InstallForCurrentUserCore();
 
     if (result == INSTALL_RESULT_FAILED) {
-        ShowNotification(APP_NAME, L"Could not install for this user.", FALSE);
+        ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_INSTALL_FAILED), FALSE);
         return;
     }
     if (result == INSTALL_RESULT_INSTALLED) {
-        ShowNotification(APP_NAME, L"Installed for this user and registered for startup.", FALSE);
+        ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_INSTALL_OK), FALSE);
         return;
     }
 
@@ -1432,19 +1511,19 @@ static void RegisterCurrentExeForStartup(void)
     WCHAR currentPath[MAX_PATH];
     if (!GetCurrentExePath(currentPath, ARRAYSIZE(currentPath)) ||
         !SetStartupRegistration(currentPath)) {
-        ShowNotification(APP_NAME, L"Could not register startup.", FALSE);
+        ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_STARTUP_REGISTER_FAILED), FALSE);
         return;
     }
-    ShowNotification(APP_NAME, L"This EXE was registered for startup.", FALSE);
+    ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_STARTUP_REGISTER_OK), FALSE);
 }
 
 static void UnregisterStartup(void)
 {
     if (!RemoveStartupRegistration()) {
-        ShowNotification(APP_NAME, L"Could not remove startup registration.", FALSE);
+        ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_STARTUP_REMOVE_FAILED), FALSE);
         return;
     }
-    ShowNotification(APP_NAME, L"Startup registration was removed.", FALSE);
+    ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_STARTUP_REMOVE_OK), FALSE);
 }
 
 static void TrimNtpSource(WCHAR *source)
@@ -1629,7 +1708,7 @@ static void ApplyNtpResult(const NtpResult *result)
         SetTrayNtpMenuText(NULL);
         g_adjustmentAvailable = FALSE;
         UpdateClockDisplays();
-        ShowNotification(APP_NAME, L"Could not obtain NTP time. The app clock is using the Windows system clock.", FALSE);
+        ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_NTP_FAILED), FALSE);
         return;
     }
 
@@ -1748,7 +1827,7 @@ static BOOL RunOpenLogFolderHelper(void)
 static void OpenLogFolder(void)
 {
     if (!RunOpenLogFolderHelper()) {
-        ShowNotification(APP_NAME, L"Could not open log folder.", FALSE);
+        ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_OPEN_LOG_FAILED), FALSE);
     }
 }
 
