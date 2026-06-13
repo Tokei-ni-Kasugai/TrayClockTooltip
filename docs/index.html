@@ -66,6 +66,10 @@
             <p>普段はトレイに収まり、Windows時計とのずれだけを静かに知らせます。表示時計としてだけでなく、軽量なNTP同期チェック用にも使えます。</p>
           </div>
           <div class="feature">
+            <strong>静かさを選べる</strong>
+            <p>通知しきい値は1/3/5/7/10秒またはOffから選べます。必要以上に知らせず、設定ファイルも増やしません。</p>
+          </div>
+          <div class="feature">
             <strong>NTP基準の時計表示</strong>
             <p><span class="nowrap">Windows Time</span>に設定されている<span class="nowrap">NTPサーバ</span>から時刻を取得し、アプリ内時計の表示に利用します。</p>
           </div>
@@ -89,10 +93,6 @@
             <strong>履歴をログで確認</strong>
             <p>NTP取得と時刻調整の結果をログに残すため、いつ確認し、どのくらいずれていたかをあとから見返せます。</p>
           </div>
-          <div class="feature">
-            <strong>設定を増やさない</strong>
-            <p>常駐時計として必要な操作はトレイメニューにまとめ、設定ファイルや常設の設定画面なしで使えるようにしています。</p>
-          </div>
         </div>
       </div>
     </section>
@@ -107,8 +107,7 @@
           <ul class="checks">
             <li><span>✓</span><div>起動時、ログオン時、ロック解除時にNTP時刻を確認</div></li>
             <li><span>✓</span><div>通知しきい値は1/3/5/7/10秒またはOffから選択</div></li>
-            <li><span>✓</span><div>通知本文は日本語環境では日本語、日本語以外では英語で表示</div></li>
-            <li><span>✓</span><div>OffでもNTP基準のアプリ時計と手動調整は利用可能</div></li>
+            <li><span>✓</span><div>しきい値をOff選択でずれ通知を止め、時計と手動調整はそのまま利用可能</div></li>
             <li><span>✓</span><div>調整時はNTP時刻を再取得してからWindows時刻へ適用</div></li>
             <li><span>✓</span><div>時刻調整時のみUACで確認し、管理者権限では常駐しません</div></li>
           </ul>
@@ -134,7 +133,7 @@
           </li>
           <li>
             <span>3</span>
-            <div><strong>右クリックでメニュー</strong><p>時刻の再確認、通知しきい値の変更、時刻調整、終了を必要に応じて実行できます。Shiftを押しながら開くと、しきい値未満のずれでも調整でき、ログフォルダも開けます。</p></div>
+            <div><strong>右クリックでメニュー</strong><p>時刻の再確認、通知しきい値の変更、時刻調整、終了を必要に応じて実行できます。Shiftを押しながら開くと、ずれ量がしきい値未満でもずれ通知を停止中でも調整でき、ログフォルダも開けます。</p></div>
           </li>
           <li>
             <span>4</span>
@@ -149,10 +148,10 @@
         <div>
           <div class="section-head">
             <h2>高度な操作はShiftメニューへ</h2>
-            <p>普段のメニューはシンプルに保ちつつ、しきい値未満でも同期したいときやログを確認したいときだけ、Shiftを押しながらメニューを開きます。</p>
+            <p>普段のメニューはシンプルに保ちつつ、通知設定に関係なく同期したいときやログを確認したいときだけ、Shiftを押しながらメニューを開きます。</p>
           </div>
           <ul class="checks">
-            <li><span>✓</span><div>既知のずれが通知しきい値未満でも時刻調整を呼び出せます</div></li>
+            <li><span>✓</span><div>通知しきい値未満、またはOff設定中でも時刻調整を呼び出せます</div></li>
             <li><span>✓</span><div>ログフォルダを開き、NTP取得と時刻調整の履歴を確認できます</div></li>
             <li><span>✓</span><div>NTP問い合わせ中は強制調整を表示せず、通常操作を邪魔しません</div></li>
           </ul>
@@ -181,8 +180,8 @@
             </div>
           </div>
           <div class="hashes" aria-label="SHA256">
-            <div>TrayClockTooltip-1.2.0.zip<code>1ec21bf92ddd83659aa5f244b2d7e36cfe33f4c66745de44de627cda047aadd6</code></div>
-            <div>TrayClockTooltip-source.zip<code>251f7ca5bdc219c7923e732abdb2badfdb95fbd6baad1154f103b5bc1cb34431</code></div>
+            <div>TrayClockTooltip-1.2.0.zip<code>66c8aafa73a4e0cb5d87fd49000716f9ed5eaa92fce99c59d70a10bb63fdf52c</code></div>
+            <div>TrayClockTooltip-source.zip<code>31d8ec02107e70adb783a0bff801c4d29e9dabc10aea8bab4727267aff80cf33</code></div>
           </div>
           <div class="unblock-preview">
             <p>ZIPのプロパティに<span class="nowrap">「許可する」</span>が表示されている場合は、解凍前に解除しておくこともできます。<span class="nowrap">SmartScreen</span>警告が表示された場合は、内容を確認して実行してください。</p>

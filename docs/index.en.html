@@ -66,6 +66,10 @@
             <p>It stays in the tray and quietly reports only Windows time drift. Use it as a lightweight NTP sync check tool, not only as a visible clock.</p>
           </div>
           <div class="feature">
+            <strong>Choose how quiet it stays</strong>
+            <p>Pick 1/3/5/7/10 seconds or Off as the notification threshold. It stays quiet without adding a settings file.</p>
+          </div>
+          <div class="feature">
             <strong>NTP-based clock display</strong>
             <p>It queries the <span class="nowrap">NTP server</span> configured in <span class="nowrap">Windows Time</span> and uses that time for the app clock.</p>
           </div>
@@ -89,10 +93,6 @@
             <strong>History in plain logs</strong>
             <p>NTP checks and time adjustments are written to logs, so you can review when checks happened and how much drift was found.</p>
           </div>
-          <div class="feature">
-            <strong>No settings sprawl</strong>
-            <p>Common actions stay in the tray menu. There is no persistent settings window or configuration file to manage.</p>
-          </div>
         </div>
       </div>
     </section>
@@ -107,8 +107,7 @@
           <ul class="checks">
             <li><span>✓</span><div>Checks NTP time at startup, logon, and unlock</div></li>
             <li><span>✓</span><div>Choose 1/3/5/7/10 seconds or Off as the notification threshold</div></li>
-            <li><span>✓</span><div>Notification text is Japanese on Japanese Windows UI and English otherwise</div></li>
-            <li><span>✓</span><div>Off keeps NTP-based app time and manual adjustment available</div></li>
+            <li><span>✓</span><div>Off suppresses drift notifications while keeping NTP-based app time and manual adjustment available</div></li>
             <li><span>✓</span><div>Re-queries NTP time before applying it to Windows time</div></li>
             <li><span>✓</span><div>Asks for UAC only when adjusting time and does not run elevated</div></li>
           </ul>
@@ -134,7 +133,7 @@
           </li>
           <li>
             <span>3</span>
-            <div><strong>Right-click for the menu</strong><p>Recheck time, change the notification threshold, adjust Windows time, or exit when needed. Hold Shift while opening the menu to adjust below-threshold drift and open the log folder.</p></div>
+            <div><strong>Right-click for the menu</strong><p>Recheck time, change the notification threshold, adjust Windows time, or exit when needed. Hold Shift while opening the menu to adjust below the threshold or while notifications are Off, and to open the log folder.</p></div>
           </li>
           <li>
             <span>4</span>
@@ -149,10 +148,10 @@
         <div>
           <div class="section-head">
             <h2>Advanced actions stay behind Shift</h2>
-            <p>The normal menu stays compact. When you want to sync even below the current notification threshold or inspect logs, hold Shift while opening the menu.</p>
+            <p>The normal menu stays compact. When you want to sync regardless of notification settings or inspect logs, hold Shift while opening the menu.</p>
           </div>
           <ul class="checks">
-            <li><span>✓</span><div>Start adjustment even when known drift is below the notification threshold</div></li>
+            <li><span>✓</span><div>Start adjustment even below the notification threshold or while notifications are Off</div></li>
             <li><span>✓</span><div>Open the log folder to inspect NTP and adjustment history</div></li>
             <li><span>✓</span><div>Forced adjustment stays hidden while an NTP query is running</div></li>
           </ul>
@@ -181,8 +180,8 @@
             </div>
           </div>
           <div class="hashes" aria-label="SHA256">
-            <div>TrayClockTooltip-1.2.0.zip<code>1ec21bf92ddd83659aa5f244b2d7e36cfe33f4c66745de44de627cda047aadd6</code></div>
-            <div>TrayClockTooltip-source.zip<code>251f7ca5bdc219c7923e732abdb2badfdb95fbd6baad1154f103b5bc1cb34431</code></div>
+            <div>TrayClockTooltip-1.2.0.zip<code>66c8aafa73a4e0cb5d87fd49000716f9ed5eaa92fce99c59d70a10bb63fdf52c</code></div>
+            <div>TrayClockTooltip-source.zip<code>31d8ec02107e70adb783a0bff801c4d29e9dabc10aea8bab4727267aff80cf33</code></div>
           </div>
           <div class="unblock-preview">
             <p>If the ZIP properties show <span class="nowrap">Unblock</span>, you can clear it before extracting. If <span class="nowrap">SmartScreen</span> still appears, review the details before running the app.</p>
