@@ -27,6 +27,7 @@
 #define WAIT_PARENT_ARGUMENT L"--wait-for-parent"
 #define INSTALL_PROMPT_ARGUMENT L"--install-prompt"
 #define OPEN_LOG_FOLDER_ARGUMENT L"--open-log-folder"
+#define NOTIFY_THRESHOLD_ARGUMENT_PREFIX L"--notify-threshold="
 
 #define WM_TRAYICON (WM_APP + 1)
 #define WM_NTP_DONE (WM_APP + 2)
@@ -44,6 +45,12 @@
 #define ID_TRAY_STARTUP_CURRENT 1006
 #define ID_TRAY_STARTUP_REMOVE 1007
 #define ID_OPEN_LOG_FOLDER 1008
+#define ID_TRAY_THRESHOLD_1 1009
+#define ID_TRAY_THRESHOLD_3 1010
+#define ID_TRAY_THRESHOLD_5 1011
+#define ID_TRAY_THRESHOLD_7 1012
+#define ID_TRAY_THRESHOLD_10 1013
+#define ID_TRAY_THRESHOLD_OFF 1014
 #define ID_POPUP_CLOSE 2001
 #define ID_POPUP_EXIT 2002
 #define ID_POPUP_ADJUST 2003
@@ -57,7 +64,6 @@
 #define NTP_TIMEOUT_MS 3000
 #define NTP_TO_FILETIME_SECONDS 9435484800ULL
 #define HNS_PER_SECOND 10000000LL
-#define DRIFT_THRESHOLD_HNS HNS_PER_SECOND
 #define NOTIFICATION_TIMEOUT_MS 5000
 #define TRAY_HOVER_X_MARGIN 4
 #define TRAY_HOVER_FALLBACK_HALF_WIDTH 24
@@ -104,6 +110,11 @@ typedef enum InstallResult {
     INSTALL_RESULT_INSTALLED_AND_LAUNCHED
 } InstallResult;
 
+typedef struct NotifyThreshold {
+    BOOL off;
+    int seconds;
+} NotifyThreshold;
+
 typedef struct CloseInstanceContext {
     const WCHAR *path;
     BOOL failed;
@@ -125,6 +136,7 @@ static HFONT g_menuFont;
 static DWORD g_notifyIconSize;
 static BOOL g_notifyIconAdded;
 static int64_t g_clockOffsetHns;
+static BOOL g_ntpTimeAvailable;
 static BOOL g_adjustmentAvailable;
 static BOOL g_ntpQueryInProgress;
 static BOOL g_notifyNtpSuccessIfNoDrift;
@@ -132,8 +144,10 @@ static BOOL g_ownsIcon;
 static BOOL g_oleInitialized;
 static BOOL g_sessionNotificationRegistered;
 static WCHAR g_statusText[320];
+static WCHAR g_clockSource[256];
 static WCHAR g_notificationTitle[128];
 static WCHAR g_notificationBody[320];
+static NotifyThreshold g_notifyThreshold = { FALSE, 1 };
 static BOOL g_notificationClickAdjusts;
 static POINT g_dragOffset;
 static POINT g_dragStartCursor;
@@ -152,8 +166,13 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 static LRESULT CALLBACK PopupWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 static LRESULT CALLBACK NotificationWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 static BOOL IsMenuActive(void);
+static void ShowNotification(const WCHAR *title, const WCHAR *body, BOOL clickAdjusts);
 static void LogSimpleEvent(const WCHAR *event, const WCHAR *result, const WCHAR *details);
 static void LogNtpResult(NtpEvent event, const NtpResult *result);
+static void LogInstallEvent(const WCHAR *result, const WCHAR *stage);
+static BOOL FileExists(const WCHAR *path);
+static void StripFileName(WCHAR *path);
+static BOOL GetDirectoryFromPath(const WCHAR *path, WCHAR *dir, DWORD cch);
 
 static int64_t FileTimeToHns(FILETIME ft)
 {
@@ -446,6 +465,103 @@ static void SetTrayNtpMenuText(const WCHAR *text)
     }
 }
 
+static BOOL IsSupportedNotifyThreshold(int seconds)
+{
+    return seconds == 1 || seconds == 3 || seconds == 5 || seconds == 7 || seconds == 10;
+}
+
+static BOOL ParseNotifyThresholdValue(const WCHAR *value, NotifyThreshold *threshold)
+{
+    WCHAR token[16];
+    size_t i = 0;
+
+    while (value[i] && value[i] != L' ' && value[i] != L'\t' && i + 1 < ARRAYSIZE(token)) {
+        token[i] = value[i];
+        i++;
+    }
+    token[i] = L'\0';
+
+    if (_wcsicmp(token, L"off") == 0) {
+        threshold->off = TRUE;
+        threshold->seconds = 0;
+        return TRUE;
+    }
+    if (token[0] >= L'0' && token[0] <= L'9') {
+        int seconds = _wtoi(token);
+        if (IsSupportedNotifyThreshold(seconds)) {
+            threshold->off = FALSE;
+            threshold->seconds = seconds;
+            return TRUE;
+        }
+    }
+    return FALSE;
+}
+
+static BOOL FindNotifyThresholdArgument(const WCHAR *text, NotifyThreshold *threshold)
+{
+    const WCHAR *cursor = text;
+    size_t prefixLen = wcslen(NOTIFY_THRESHOLD_ARGUMENT_PREFIX);
+
+    while ((cursor = wcsstr(cursor, NOTIFY_THRESHOLD_ARGUMENT_PREFIX)) != NULL) {
+        if (cursor == text || cursor[-1] == L' ' || cursor[-1] == L'\t') {
+            return ParseNotifyThresholdValue(cursor + prefixLen, threshold);
+        }
+        cursor += prefixLen;
+    }
+    return FALSE;
+}
+
+static BOOL NotifyThresholdEquals(const NotifyThreshold *left, const NotifyThreshold *right)
+{
+    return left->off == right->off && left->seconds == right->seconds;
+}
+
+static BOOL IsDefaultNotifyThreshold(const NotifyThreshold *threshold)
+{
+    return !threshold->off && threshold->seconds == 1;
+}
+
+static BOOL IsOffsetAtNotifyThreshold(int64_t offsetHns)
+{
+    if (g_notifyThreshold.off) {
+        return FALSE;
+    }
+    return llabs(offsetHns) >= ((int64_t)g_notifyThreshold.seconds * HNS_PER_SECOND);
+}
+
+static void BuildNtpStatusText(int64_t offsetHns, const WCHAR *source, WCHAR *buffer, DWORD cch)
+{
+    double seconds = (double)offsetHns / (double)HNS_PER_SECOND;
+    swprintf(buffer, cch, L"Time: %+.3fs (%ls)", seconds, source && source[0] ? source : L"-");
+}
+
+static void ReevaluateAdjustmentAvailability(void)
+{
+    if (g_ntpTimeAvailable && IsOffsetAtNotifyThreshold(g_clockOffsetHns)) {
+        WCHAR status[320];
+        BuildNtpStatusText(g_clockOffsetHns, g_clockSource, status, ARRAYSIZE(status));
+        SetTrayNtpMenuText(status);
+        g_adjustmentAvailable = TRUE;
+    } else {
+        SetTrayNtpMenuText(NULL);
+        g_adjustmentAvailable = FALSE;
+    }
+}
+
+static BOOL CanAdjustFromNormalMenu(void)
+{
+    return g_adjustmentAvailable || (g_notifyThreshold.off && g_ntpTimeAvailable && !g_ntpQueryInProgress);
+}
+
+static void ShowManualRefreshSuccessNotification(void)
+{
+    if (g_notifyThreshold.off) {
+        ShowNotification(APP_NAME, L"NTP time was refreshed. Automatic drift notifications are off.", FALSE);
+    } else {
+        ShowNotification(APP_NAME, L"NTP time was refreshed. Windows time is within the notification threshold.", FALSE);
+    }
+}
+
 static void ShowNotification(const WCHAR *title, const WCHAR *body, BOOL clickAdjusts)
 {
     HideNotification();
@@ -504,6 +620,8 @@ static void RunElevatedAdjustment(void)
         }
         if (exitCode == 0) {
             g_clockOffsetHns = 0;
+            g_ntpTimeAvailable = FALSE;
+            g_clockSource[0] = L'\0';
             g_adjustmentAvailable = FALSE;
             SetTrayNtpMenuText(NULL);
             HideNotification();
@@ -574,13 +692,24 @@ static BOOL BuildInstalledExePath(WCHAR *path, DWORD cch)
         AppendPathPart(path, cch, EXE_FILE_NAME);
 }
 
-static BOOL SetStartupRegistration(const WCHAR *exePath)
+static BOOL BuildStartupCommand(const WCHAR *exePath, const NotifyThreshold *threshold, WCHAR *command, DWORD cch)
+{
+    if (IsDefaultNotifyThreshold(threshold)) {
+        return swprintf(command, cch, L"\"%ls\"", exePath) >= 0;
+    }
+    if (threshold->off) {
+        return swprintf(command, cch, L"\"%ls\" %lsoff", exePath, NOTIFY_THRESHOLD_ARGUMENT_PREFIX) >= 0;
+    }
+    return swprintf(command, cch, L"\"%ls\" %ls%d", exePath, NOTIFY_THRESHOLD_ARGUMENT_PREFIX, threshold->seconds) >= 0;
+}
+
+static BOOL SetStartupRegistrationWithThreshold(const WCHAR *exePath, const NotifyThreshold *threshold)
 {
     HKEY key;
-    WCHAR command[MAX_PATH + 3];
+    WCHAR command[MAX_PATH + 64];
     LSTATUS status;
 
-    if (swprintf(command, ARRAYSIZE(command), L"\"%ls\"", exePath) < 0) {
+    if (!BuildStartupCommand(exePath, threshold, command, ARRAYSIZE(command))) {
         return FALSE;
     }
 
@@ -595,35 +724,44 @@ static BOOL SetStartupRegistration(const WCHAR *exePath)
     return status == ERROR_SUCCESS;
 }
 
-static void UnquoteCommandPath(WCHAR *path)
+static BOOL SetStartupRegistration(const WCHAR *exePath)
 {
-    size_t len;
-    WCHAR *end;
+    return SetStartupRegistrationWithThreshold(exePath, &g_notifyThreshold);
+}
 
-    while (*path == L' ' || *path == L'\t') {
-        MoveMemory(path, path + 1, (wcslen(path) + 1) * sizeof(WCHAR));
+static BOOL ExtractCommandPath(const WCHAR *command, WCHAR *path, DWORD cch)
+{
+    WCHAR *end;
+    size_t len;
+
+    while (*command == L' ' || *command == L'\t') {
+        command++;
     }
 
-    if (path[0] == L'"') {
-        end = wcschr(path + 1, L'"');
+    if (command[0] == L'"') {
+        end = wcschr(command + 1, L'"');
         if (end) {
-            *end = L'\0';
-            MoveMemory(path, path + 1, wcslen(path) * sizeof(WCHAR));
-            return;
+            len = (size_t)(end - (command + 1));
+            if (len + 1 > cch) {
+                return FALSE;
+            }
+            memcpy(path, command + 1, len * sizeof(WCHAR));
+            path[len] = L'\0';
+            return path[0] != L'\0';
         }
     }
 
-    end = wcspbrk(path, L" \t");
-    if (end) {
-        *end = L'\0';
+    end = wcspbrk(command, L" \t");
+    len = end ? (size_t)(end - command) : wcslen(command);
+    if (len + 1 > cch) {
+        return FALSE;
     }
-    len = wcslen(path);
-    while (len > 0 && (path[len - 1] == L' ' || path[len - 1] == L'\t')) {
-        path[--len] = L'\0';
-    }
+    memcpy(path, command, len * sizeof(WCHAR));
+    path[len] = L'\0';
+    return path[0] != L'\0';
 }
 
-static BOOL GetStartupRegistration(WCHAR *path, DWORD cch)
+static BOOL GetStartupRegistrationCommand(WCHAR *command, DWORD cch)
 {
     HKEY key;
     DWORD type = 0;
@@ -633,15 +771,97 @@ static BOOL GetStartupRegistration(WCHAR *path, DWORD cch)
         return FALSE;
     }
 
-    status = RegQueryValueExW(key, APP_NAME, NULL, &type, (BYTE *)path, &bytes);
+    status = RegQueryValueExW(key, APP_NAME, NULL, &type, (BYTE *)command, &bytes);
     RegCloseKey(key);
     if (status != ERROR_SUCCESS || (type != REG_SZ && type != REG_EXPAND_SZ) || bytes < sizeof(WCHAR)) {
         return FALSE;
     }
 
-    path[cch - 1] = L'\0';
-    UnquoteCommandPath(path);
-    return path[0] != L'\0';
+    command[cch - 1] = L'\0';
+    return command[0] != L'\0';
+}
+
+static BOOL GetStartupRegistration(WCHAR *path, DWORD cch)
+{
+    WCHAR command[MAX_PATH + 128];
+    if (!GetStartupRegistrationCommand(command, ARRAYSIZE(command))) {
+        return FALSE;
+    }
+    return ExtractCommandPath(command, path, cch);
+}
+
+static BOOL GetStartupRegistrationThreshold(NotifyThreshold *threshold)
+{
+    WCHAR command[MAX_PATH + 128];
+    if (!GetStartupRegistrationCommand(command, ARRAYSIZE(command))) {
+        return FALSE;
+    }
+    return FindNotifyThresholdArgument(command, threshold);
+}
+
+static BOOL UpdateStartupRegistrationThreshold(void)
+{
+    WCHAR command[MAX_PATH + 128];
+    WCHAR path[MAX_PATH];
+
+    if (!GetStartupRegistrationCommand(command, ARRAYSIZE(command))) {
+        return TRUE;
+    }
+    if (!ExtractCommandPath(command, path, ARRAYSIZE(path))) {
+        return FALSE;
+    }
+    return SetStartupRegistrationWithThreshold(path, &g_notifyThreshold);
+}
+
+static void SetNotifyThreshold(NotifyThreshold threshold)
+{
+    if (NotifyThresholdEquals(&g_notifyThreshold, &threshold)) {
+        return;
+    }
+    g_notifyThreshold = threshold;
+    ReevaluateAdjustmentAvailability();
+    if (!UpdateStartupRegistrationThreshold()) {
+        ShowNotification(APP_NAME, L"Could not update startup notification threshold.", FALSE);
+    }
+}
+
+static void InitializeNotifyThreshold(PWSTR cmdLine)
+{
+    NotifyThreshold threshold;
+
+    if (FindNotifyThresholdArgument(cmdLine, &threshold) ||
+        GetStartupRegistrationThreshold(&threshold)) {
+        g_notifyThreshold = threshold;
+    }
+}
+
+static BOOL CopyReleaseReadmeToInstallDir(const WCHAR *currentPath, const WCHAR *installDir, const WCHAR *fileName)
+{
+    WCHAR source[MAX_PATH];
+    WCHAR target[MAX_PATH];
+
+    if (!GetDirectoryFromPath(currentPath, source, ARRAYSIZE(source)) ||
+        !AppendPathPart(source, ARRAYSIZE(source), fileName)) {
+        return FALSE;
+    }
+    if (!FileExists(source)) {
+        return TRUE;
+    }
+    wcscpy_s(target, ARRAYSIZE(target), installDir);
+    if (!AppendPathPart(target, ARRAYSIZE(target), fileName)) {
+        return FALSE;
+    }
+    return CopyFileW(source, target, FALSE);
+}
+
+static void CopyReleaseReadmesToInstallDir(const WCHAR *currentPath, const WCHAR *installedPath)
+{
+    WCHAR installDir[MAX_PATH];
+
+    wcscpy_s(installDir, ARRAYSIZE(installDir), installedPath);
+    StripFileName(installDir);
+    LogInstallEvent(CopyReleaseReadmeToInstallDir(currentPath, installDir, L"README.txt") ? L"OK" : L"FAILED", L"readme-en");
+    LogInstallEvent(CopyReleaseReadmeToInstallDir(currentPath, installDir, L"README.ja.txt") ? L"OK" : L"FAILED", L"readme-ja");
 }
 
 static BOOL RemoveStartupRegistration(void)
@@ -1126,6 +1346,7 @@ static InstallResult InstallForCurrentUserCore(void)
         return INSTALL_RESULT_FAILED;
     }
     LogInstallEvent(L"OK", L"verify");
+    CopyReleaseReadmesToInstallDir(currentPath, installedPath);
 
     if (!SetStartupRegistration(installedPath)) {
         LogInstallEvent(L"FAILED", L"startup");
@@ -1361,6 +1582,8 @@ static void ApplyNtpResult(const NtpResult *result)
 
     if (!result || !result->success) {
         g_clockOffsetHns = 0;
+        g_ntpTimeAvailable = FALSE;
+        g_clockSource[0] = L'\0';
         SetTrayNtpMenuText(NULL);
         g_adjustmentAvailable = FALSE;
         UpdateClockDisplays();
@@ -1369,9 +1592,11 @@ static void ApplyNtpResult(const NtpResult *result)
     }
 
     g_clockOffsetHns = result->offsetHns;
+    g_ntpTimeAvailable = TRUE;
+    wcscpy_s(g_clockSource, ARRAYSIZE(g_clockSource), result->source);
     UpdateClockDisplays();
 
-    if (llabs(result->offsetHns) >= DRIFT_THRESHOLD_HNS) {
+    if (IsOffsetAtNotifyThreshold(result->offsetHns)) {
         WCHAR body[320];
         double seconds = (double)llabs(result->offsetHns) / (double)HNS_PER_SECOND;
         SetTrayNtpMenuText(result->message);
@@ -1384,7 +1609,7 @@ static void ApplyNtpResult(const NtpResult *result)
         SetTrayNtpMenuText(NULL);
         g_adjustmentAvailable = FALSE;
         if (notifySuccessIfNoDrift) {
-            ShowNotification(APP_NAME, L"NTP time was refreshed. Windows time is within 1 second.", FALSE);
+            ShowManualRefreshSuccessNotification();
         }
     }
 }
@@ -1434,6 +1659,11 @@ static BOOL IsAdvancedMenuRequested(void)
 static BOOL CanForceAdjustmentFromMenu(BOOL advancedMenuRequested)
 {
     return advancedMenuRequested && !g_ntpQueryInProgress;
+}
+
+static BOOL CanShowAdjustmentMenu(BOOL advancedMenuRequested)
+{
+    return CanAdjustFromNormalMenu() || CanForceAdjustmentFromMenu(advancedMenuRequested);
 }
 
 static BOOL OpenLogFolderWithShell(void)
@@ -1488,6 +1718,66 @@ static void AppendTrayRefreshMenuItem(HMENU menu)
 {
     UINT flags = g_ntpQueryInProgress ? MF_STRING | MF_DISABLED : MF_STRING;
     AppendMenuW(menu, flags, ID_TRAY_REFRESH_NTP, g_statusText);
+}
+
+static void AppendThresholdItem(HMENU menu, UINT id, int seconds, const WCHAR *text)
+{
+    NotifyThreshold threshold = { FALSE, seconds };
+    UINT flags = MF_STRING;
+    if (NotifyThresholdEquals(&g_notifyThreshold, &threshold)) {
+        flags |= MF_CHECKED;
+    }
+    AppendMenuW(menu, flags, id, text);
+}
+
+static void AppendNotifyThresholdMenu(HMENU menu)
+{
+    HMENU thresholdMenu = CreatePopupMenu();
+    UINT offFlags = MF_STRING;
+
+    if (!thresholdMenu) {
+        return;
+    }
+    AppendThresholdItem(thresholdMenu, ID_TRAY_THRESHOLD_1, 1, L"1 sec");
+    AppendThresholdItem(thresholdMenu, ID_TRAY_THRESHOLD_3, 3, L"3 sec");
+    AppendThresholdItem(thresholdMenu, ID_TRAY_THRESHOLD_5, 5, L"5 sec");
+    AppendThresholdItem(thresholdMenu, ID_TRAY_THRESHOLD_7, 7, L"7 sec");
+    AppendThresholdItem(thresholdMenu, ID_TRAY_THRESHOLD_10, 10, L"10 sec");
+    AppendMenuW(thresholdMenu, MF_SEPARATOR, 0, NULL);
+    if (g_notifyThreshold.off) {
+        offFlags |= MF_CHECKED;
+    }
+    AppendMenuW(thresholdMenu, offFlags, ID_TRAY_THRESHOLD_OFF, L"Off");
+    AppendMenuW(menu, MF_POPUP, (UINT_PTR)thresholdMenu, L"Notify threshold");
+}
+
+static BOOL NotifyThresholdFromCommandId(UINT id, NotifyThreshold *threshold)
+{
+    threshold->off = FALSE;
+    switch (id) {
+    case ID_TRAY_THRESHOLD_1:
+        threshold->seconds = 1;
+        return TRUE;
+    case ID_TRAY_THRESHOLD_3:
+        threshold->seconds = 3;
+        return TRUE;
+    case ID_TRAY_THRESHOLD_5:
+        threshold->seconds = 5;
+        return TRUE;
+    case ID_TRAY_THRESHOLD_7:
+        threshold->seconds = 7;
+        return TRUE;
+    case ID_TRAY_THRESHOLD_10:
+        threshold->seconds = 10;
+        return TRUE;
+    case ID_TRAY_THRESHOLD_OFF:
+        threshold->off = TRUE;
+        threshold->seconds = 0;
+        return TRUE;
+    default:
+        threshold->seconds = 0;
+        return FALSE;
+    }
 }
 
 static void MeasureTextLine(HDC dc, const WCHAR *text, SIZE *size)
@@ -1563,7 +1853,7 @@ static HMENU CreateTrayMenu(BOOL advancedMenuRequested)
     BOOL startupRegistered = IsStartupRegistered();
     BOOL canRegisterCurrentExe = CanRegisterCurrentExeForStartup();
     BOOL canInstallForCurrentUser = CanInstallForCurrentUser();
-    BOOL forceAdjustmentAvailable = CanForceAdjustmentFromMenu(advancedMenuRequested);
+    BOOL adjustmentMenuAvailable = CanShowAdjustmentMenu(advancedMenuRequested);
     if (g_adjustmentAvailable) {
         AppendMenuW(menu, MF_OWNERDRAW | MF_DISABLED, ID_TRAY_STATUS, NULL);
         AppendMenuW(menu, MF_STRING, ID_TRAY_ADJUST, L"Adjust Windows time (admin)");
@@ -1573,7 +1863,7 @@ static HMENU CreateTrayMenu(BOOL advancedMenuRequested)
         AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     } else {
         AppendTrayRefreshMenuItem(menu);
-        if (forceAdjustmentAvailable) {
+        if (adjustmentMenuAvailable) {
             AppendMenuW(menu, MF_STRING, ID_TRAY_ADJUST, L"Adjust Windows time (admin)");
         }
         if (advancedMenuRequested) {
@@ -1581,6 +1871,8 @@ static HMENU CreateTrayMenu(BOOL advancedMenuRequested)
         }
         AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     }
+    AppendNotifyThresholdMenu(menu);
+    AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     if (startupMenu) {
         AppendMenuW(startupMenu, canInstallForCurrentUser ? MF_STRING : MF_STRING | MF_GRAYED,
             ID_TRAY_INSTALL_USER, L"Install for this user");
@@ -1598,14 +1890,14 @@ static HMENU CreateTrayMenu(BOOL advancedMenuRequested)
 static HMENU CreatePopupMenuForClock(BOOL advancedMenuRequested)
 {
     HMENU menu = CreatePopupMenu();
-    BOOL forceAdjustmentAvailable = CanForceAdjustmentFromMenu(advancedMenuRequested);
-    if (g_adjustmentAvailable || forceAdjustmentAvailable) {
+    BOOL adjustmentMenuAvailable = CanShowAdjustmentMenu(advancedMenuRequested);
+    if (adjustmentMenuAvailable) {
         AppendMenuW(menu, MF_STRING, ID_POPUP_ADJUST, L"Adjust Windows time (admin)");
     }
     if (advancedMenuRequested) {
         AppendMenuW(menu, MF_STRING, ID_OPEN_LOG_FOLDER, L"Open log folder");
     }
-    if (g_adjustmentAvailable || forceAdjustmentAvailable || advancedMenuRequested) {
+    if (adjustmentMenuAvailable || advancedMenuRequested) {
         AppendMenuW(menu, MF_SEPARATOR, 0, NULL);
     }
     AppendMenuW(menu, MF_STRING, ID_POPUP_CLOSE, L"Close");
@@ -2149,7 +2441,14 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
     }
 
     case WM_COMMAND:
-        switch (LOWORD(wParam)) {
+    {
+        UINT commandId = LOWORD(wParam);
+        NotifyThreshold threshold;
+        if (NotifyThresholdFromCommandId(commandId, &threshold)) {
+            SetNotifyThreshold(threshold);
+            return 0;
+        }
+        switch (commandId) {
         case ID_TRAY_EXIT:
         case ID_POPUP_EXIT:
             RequestAppExit();
@@ -2178,6 +2477,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             return 0;
         }
         break;
+    }
 
     case WM_ENTERMENULOOP:
         g_contextMenuOpen = TRUE;
@@ -2427,6 +2727,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR cmdLine,
         return OpenLogFolderWithShell() ? 0 : 1;
     }
 
+    InitializeNotifyThreshold(cmdLine);
     WaitForParentIfRequested(cmdLine);
     if (!HandleInstallPromptIfRequested(cmdLine)) {
         return 0;
