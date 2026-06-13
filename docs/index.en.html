@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TrayClockTooltip - Lightweight NTP Tray Clock for Windows</title>
-  <meta name="description" content="TrayClockTooltip is a lightweight tray clock for Windows that can use NTP time.">
+  <title>TrayClockTooltip - Lightweight NTP Tray Clock and Sync Helper for Windows</title>
+  <meta name="description" content="TrayClockTooltip is a lightweight tray clock for Windows that can use NTP time. It checks NTP time at logon and unlock, then reports drift from Windows time.">
   <link rel="icon" href="site-icon.ico">
   <link rel="canonical" href="https://tokei-ni-kasugai.github.io/TrayClockTooltip/index.en.html">
   <link rel="alternate" hreflang="ja" href="https://tokei-ni-kasugai.github.io/TrayClockTooltip/">
@@ -32,7 +32,7 @@
       <div class="hero-copy">
         <p class="eyebrow">Lightweight tray clock with NTP time</p>
         <h1>TrayClockTooltip</h1>
-        <p class="lead">A lightweight tray clock that can use <span class="nowrap">NTP time</span>. It replaces the standard tooltip with a floating clock and quietly notifies you when <span class="nowrap">Windows time</span> drifts.</p>
+        <p class="lead">A lightweight tray clock that can use <span class="nowrap">NTP time</span>. It replaces the standard tooltip with a floating clock and quietly notifies you when <span class="nowrap">Windows time</span> drifts. It also works as a small NTP sync helper.</p>
         <div class="hero-actions">
           <a class="button primary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-1.1.2.zip">Download ZIP</a>
           <a class="button secondary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-source.zip">Source ZIP</a>
@@ -54,7 +54,7 @@
       <div class="inner">
         <div class="section-head">
           <h2>Stays small, speaks up only when needed</h2>
-          <p>It keeps a low profile as a tray clock, while keeping NTP checks, drift notifications, and time adjustment close at hand.</p>
+          <p>It keeps a low profile as a tray clock, while keeping NTP checks at logon, drift notifications, and time adjustment close at hand.</p>
         </div>
         <div class="features">
           <div class="feature">
@@ -63,7 +63,7 @@
           </div>
           <div class="feature">
             <strong>NTP checks without clock clutter</strong>
-            <p>It stays in the tray and quietly reports only Windows time drift. Use it as a lightweight time-check tool, not only as a visible clock.</p>
+            <p>It stays in the tray and quietly reports only Windows time drift. Use it as a lightweight NTP sync check tool, not only as a visible clock.</p>
           </div>
           <div class="feature">
             <strong>NTP-based clock display</strong>
@@ -136,7 +136,7 @@
           </li>
           <li>
             <span>4</span>
-            <div><strong>Rechecks after sleep</strong><p>Rechecks time on logon or unlock after resume.</p></div>
+            <div><strong>Rechecks after sleep</strong><p>Rechecks NTP time on logon or unlock after resume, then compares it with Windows time.</p></div>
           </li>
         </ol>
       </div>

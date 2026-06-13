@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>TrayClockTooltip - NTP時刻を使う軽量タスクトレイ時計</title>
-  <meta name="description" content="TrayClockTooltipは、NTP時刻を利用できる軽量なタスクトレイ時計です。">
+  <title>TrayClockTooltip - NTP同期補助にも使える軽量タスクトレイ時計</title>
+  <meta name="description" content="TrayClockTooltipは、NTP時刻を利用できる軽量なタスクトレイ時計です。ログイン時やロック解除時にNTP時刻を確認し、Windows時計とのずれを知らせます。">
   <link rel="icon" href="site-icon.ico">
   <link rel="canonical" href="https://tokei-ni-kasugai.github.io/TrayClockTooltip/">
   <link rel="alternate" hreflang="ja" href="https://tokei-ni-kasugai.github.io/TrayClockTooltip/">
@@ -32,7 +32,7 @@
       <div class="hero-copy">
         <p class="eyebrow">Lightweight tray clock with NTP time</p>
         <h1>TrayClockTooltip</h1>
-        <p class="lead"><span class="nowrap">NTP時刻</span>を利用できる軽量なタスクトレイ時計。標準ツールチップの代わりに<br>フローティング時計を表示し、<span class="nowrap">Windows時計</span>とのずれを静かに知らせます。</p>
+        <p class="lead"><span class="nowrap">NTP時刻</span>を利用できる軽量なタスクトレイ時計。標準ツールチップの代わりに<br>フローティング時計を表示し、<span class="nowrap">Windows時計</span>とのずれを静かに知らせます。NTP同期補助としても使えます。</p>
         <div class="hero-actions">
           <a class="button primary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-1.1.2.zip">Download ZIP</a>
           <a class="button secondary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-source.zip">Source ZIP</a>
@@ -54,7 +54,7 @@
       <div class="inner">
         <div class="section-head">
           <h2>小さく常駐して、<br>必要なときだけ知らせる</h2>
-          <p>時計アプリとしての存在感は控えめに。NTP取得、ずれ通知、時刻調整の導線だけをコンパクトにまとめています。</p>
+          <p>時計アプリとしての存在感は控えめに。NTP取得、ログイン時の再確認、ずれ通知、時刻調整の導線だけをコンパクトにまとめています。</p>
         </div>
         <div class="features">
           <div class="feature">
@@ -63,7 +63,7 @@
           </div>
           <div class="feature">
             <strong>時計を主張しないNTPチェック</strong>
-            <p>普段はトレイに収まり、Windows時計とのずれだけを静かに知らせます。表示時計としてだけでなく、軽量な時刻チェック用にも使えます。</p>
+            <p>普段はトレイに収まり、Windows時計とのずれだけを静かに知らせます。表示時計としてだけでなく、軽量なNTP同期チェック用にも使えます。</p>
           </div>
           <div class="feature">
             <strong>NTP基準の時計表示</strong>
@@ -136,7 +136,7 @@
           </li>
           <li>
             <span>4</span>
-            <div><strong>スリープ復帰後も再確認</strong><p>ログオン/ロック解除時に時刻を再確認し、ずれを確認します。</p></div>
+            <div><strong>スリープ復帰後も再確認</strong><p>ログオン/ロック解除時にもNTP時刻を再確認し、Windows時計とのずれを確認します。</p></div>
           </li>
         </ol>
       </div>
