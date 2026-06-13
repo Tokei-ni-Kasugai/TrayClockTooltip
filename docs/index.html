@@ -34,8 +34,8 @@
         <h1>TrayClockTooltip</h1>
         <p class="lead"><span class="nowrap">NTP時刻</span>を利用できる軽量なタスクトレイ時計。標準ツールチップの代わりに<br>フローティング時計を表示し、<span class="nowrap">Windows時計</span>とのずれを静かに知らせます。NTP同期補助としても使えます。</p>
         <div class="hero-actions">
-          <a class="button primary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-1.1.2.zip">Download ZIP</a>
-          <a class="button secondary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-source.zip">Source ZIP</a>
+          <a class="button primary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.2.0/TrayClockTooltip-1.2.0.zip">Download ZIP</a>
+          <a class="button secondary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.2.0/TrayClockTooltip-source.zip">Source ZIP</a>
         </div>
         <div class="download-note">
           <p>無署名のため、初回起動時に<span class="nowrap">SmartScreen</span>警告が表示される場合があります。</p>
@@ -45,7 +45,7 @@
           <span><span class="nowrap">Windows 11</span>対応</span>
           <span>軽量ネイティブ</span>
           <span>.NET不要</span>
-          <span>EXE 約75KB / 通常時メモリ5MB未満</span>
+          <span>EXE 約80KB / 通常時メモリ5MB未満</span>
         </div>
       </div>
     </section>
@@ -71,11 +71,11 @@
           </div>
           <div class="feature">
             <strong>ずれ検知と通知</strong>
-            <p><span class="nowrap">Windows時計</span>と<span class="nowrap">NTP時刻</span>が1秒以上ずれている場合、独自通知とメニューで状態を知らせます。</p>
+            <p><span class="nowrap">Windows時計</span>と<span class="nowrap">NTP時刻</span>のずれを、選択したしきい値で独自通知とメニューに表示します。</p>
           </div>
           <div class="feature">
             <strong>手動同期にも対応</strong>
-            <p>予約開始や販売開始の前など、1秒未満のずれでも気になるときは<span class="nowrap">Shift + 右クリック</span>から時刻調整を呼び出せます。</p>
+            <p>予約開始や販売開始の前など、通知しきい値未満のずれでも気になるときは<span class="nowrap">Shift + 右クリック</span>から時刻調整を呼び出せます。</p>
           </div>
           <div class="feature">
             <strong>ツールチップ風プレビュー</strong>
@@ -106,7 +106,8 @@
           </div>
           <ul class="checks">
             <li><span>✓</span><div>起動時、ログオン時、ロック解除時にNTP時刻を確認</div></li>
-            <li><span>✓</span><div>1秒以上のずれがあると通知とメニューで表示</div></li>
+            <li><span>✓</span><div>通知しきい値は1/3/5/7/10秒またはOffから選択</div></li>
+            <li><span>✓</span><div>OffでもNTP基準のアプリ時計と手動調整は利用可能</div></li>
             <li><span>✓</span><div>調整時はNTP時刻を再取得してからWindows時刻へ適用</div></li>
             <li><span>✓</span><div>時刻調整時のみUACで確認し、管理者権限では常駐しません</div></li>
           </ul>
@@ -132,7 +133,7 @@
           </li>
           <li>
             <span>3</span>
-            <div><strong>右クリックでメニュー</strong><p>時刻の再確認、時刻調整、終了を必要に応じて実行できます。Shiftを押しながら開くと、1秒未満のずれでも調整でき、ログフォルダも開けます。</p></div>
+            <div><strong>右クリックでメニュー</strong><p>時刻の再確認、通知しきい値の変更、時刻調整、終了を必要に応じて実行できます。Shiftを押しながら開くと、しきい値未満のずれでも調整でき、ログフォルダも開けます。</p></div>
           </li>
           <li>
             <span>4</span>
@@ -147,10 +148,10 @@
         <div>
           <div class="section-head">
             <h2>高度な操作はShiftメニューへ</h2>
-            <p>普段のメニューはシンプルに保ちつつ、1秒未満でも同期したいときやログを確認したいときだけ、Shiftを押しながらメニューを開きます。</p>
+            <p>普段のメニューはシンプルに保ちつつ、しきい値未満でも同期したいときやログを確認したいときだけ、Shiftを押しながらメニューを開きます。</p>
           </div>
           <ul class="checks">
-            <li><span>✓</span><div>既知のずれが1秒未満でも時刻調整を呼び出せます</div></li>
+            <li><span>✓</span><div>既知のずれが通知しきい値未満でも時刻調整を呼び出せます</div></li>
             <li><span>✓</span><div>ログフォルダを開き、NTP取得と時刻調整の履歴を確認できます</div></li>
             <li><span>✓</span><div>NTP問い合わせ中は強制調整を表示せず、通常操作を邪魔しません</div></li>
           </ul>
@@ -172,15 +173,15 @@
         </div>
         <div class="download-side">
           <div class="download-topline">
-            <a href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/SHA256SUMS.txt">SHA256SUMS.txt</a>
+            <a href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.2.0/SHA256SUMS.txt">SHA256SUMS.txt</a>
             <div class="download-actions">
-              <a class="button primary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-1.1.2.zip">Download ZIP</a>
-              <a class="button secondary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.1.2/TrayClockTooltip-source.zip">Source ZIP</a>
+              <a class="button primary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.2.0/TrayClockTooltip-1.2.0.zip">Download ZIP</a>
+              <a class="button secondary" href="https://github.com/Tokei-ni-Kasugai/TrayClockTooltip/releases/download/v1.2.0/TrayClockTooltip-source.zip">Source ZIP</a>
             </div>
           </div>
           <div class="hashes" aria-label="SHA256">
-            <div>TrayClockTooltip-1.1.2.zip<code>2c26b72d60945eb9f97b8b3dcbc7ff21b5ecec2ddc159ae25e7c4e22a8c4c60a</code></div>
-            <div>TrayClockTooltip-source.zip<code>8ce48e20f4f1ea0dbe78d26cc46ff26fce1614c530dff43606380b720c76add4</code></div>
+            <div>TrayClockTooltip-1.2.0.zip<code>1ec21bf92ddd83659aa5f244b2d7e36cfe33f4c66745de44de627cda047aadd6</code></div>
+            <div>TrayClockTooltip-source.zip<code>251f7ca5bdc219c7923e732abdb2badfdb95fbd6baad1154f103b5bc1cb34431</code></div>
           </div>
           <div class="unblock-preview">
             <p>ZIPのプロパティに<span class="nowrap">「許可する」</span>が表示されている場合は、解凍前に解除しておくこともできます。<span class="nowrap">SmartScreen</span>警告が表示された場合は、内容を確認して実行してください。</p>

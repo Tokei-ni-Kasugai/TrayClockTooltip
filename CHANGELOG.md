@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.0 - 2026-06-14
+
+- Added tray-menu notification threshold options: `1 sec`, `3 sec`, `5 sec`, `7 sec`, `10 sec`, and `Off`.
+- Notification threshold now controls drift notifications and normal `Adjust Windows time (admin)` availability while the app clock continues to use acquired NTP time.
+- Threshold changes apply immediately to the latest known NTP offset and update startup registration arguments while preserving the registered EXE path.
+- Added install-time copying of release README files to the installed app folder when they are available next to the source EXE.
+- Updated tests and documentation for configurable notification thresholds.
+
 ## 1.1.2 - 2026-06-12
 
 - Fixed installed app launch so it no longer keeps the portable source folder as its current directory after install.

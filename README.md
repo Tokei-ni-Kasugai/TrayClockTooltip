@@ -4,7 +4,7 @@
 
 It avoids the .NET Framework runtime dependency and stays resident only in the notification area. The app clock can use time from the NTP server configured in Windows Time. Windows time adjustment asks for UAC confirmation only when adjustment is requested.
 
-Version: `1.1.2.0`
+Version: `1.2.0.0`
 
 ## Features
 
@@ -13,12 +13,14 @@ Version: `1.1.2.0`
 - Startup NTP query using the NTP server configured in Windows Time.
 - NTP query on session logon and unlock, useful after sleep/resume.
 - Manual NTP refresh from the tray menu.
-- Manual NTP refresh shows a success notification when NTP succeeds and drift is below 1 second.
+- Manual NTP refresh shows a success notification when NTP succeeds and drift is below the current notification threshold.
 - NTP query, time adjustment, and install handoff history are written to a small text log.
 - Startup menu for current-user install and startup registration.
 - App clock uses the acquired NTP time when NTP succeeds.
 - If NTP acquisition fails, the app uses the Windows system clock.
-- If the Windows clock differs by 1 second or more, a custom notification is shown and time adjustment becomes available from menus.
+- If the Windows clock differs by the current notification threshold or more, a custom notification is shown and time adjustment becomes available from menus.
+- Notification threshold can be changed from the tray menu: `1 sec`, `3 sec`, `5 sec`, `7 sec`, `10 sec`, or `Off`.
+- `Off` keeps NTP-based app time active but suppresses automatic drift notifications.
 - Time adjustment asks for UAC confirmation, then re-queries NTP and applies the freshly acquired time.
 - Time adjustment success or adjustment failure is shown with a custom notification. UAC cancellation stays silent.
 - Custom notifications close after 5 seconds.
@@ -42,24 +44,25 @@ Version: `1.1.2.0`
 - Drag: move the clock.
 - Pinned state: small side indicators are shown while the clock is pinned.
 - Right-click: open the floating clock menu.
-- `Adjust Windows time (admin)`: shown when drift of 1 second or more is detected. Selecting it starts time adjustment with administrator rights.
+- `Adjust Windows time (admin)`: shown when drift reaches the current notification threshold, or when notification threshold is `Off` and NTP time is available. Selecting it starts time adjustment with administrator rights.
 - `Close`: hide only the floating clock.
 - `Exit`: exit the app.
 
 ### Tray Menu
 
-- `NTP: refresh`: query the Windows Time configured NTP server again. This is shown when no drift of 1 second or more is known. If the manual refresh succeeds and drift is below 1 second, a success notification is shown.
-- `Time: +...s (...)` / `Time: -...s (...)`: shown as a status-only item when drift of 1 second or more is detected. It uses normal menu colors and does not highlight on hover.
-- `Adjust Windows time (admin)`: shown below the status item when drift of 1 second or more is detected. Selecting it starts time adjustment with administrator rights.
+- `NTP: refresh`: query the Windows Time configured NTP server again. This is shown when no drift at or above the current notification threshold is known. If the manual refresh succeeds and drift is below the current threshold, a success notification is shown.
+- `Time: +...s (...)` / `Time: -...s (...)`: shown as a status-only item when drift reaches the current notification threshold. It uses normal menu colors and does not highlight on hover.
+- `Adjust Windows time (admin)`: shown below the status item when drift reaches the current notification threshold. It is also shown normally when notification threshold is `Off` and NTP time is available. Selecting it starts time adjustment with administrator rights.
+- `Notify threshold`: change the drift threshold used for automatic notifications and normal adjustment availability. If startup registration exists, the selected value is also written to the startup command line.
 - `Startup`:
-  - `Install for this user`: copy the EXE to `%LOCALAPPDATA%\Programs\TrayClockTooltip\`, verify the copied file, register that copy for startup, exit the current EXE, and launch the installed EXE.
+  - `Install for this user`: copy the EXE to `%LOCALAPPDATA%\Programs\TrayClockTooltip\`, verify the copied file, copy release README files when present, register that copy for startup, exit the current EXE, and launch the installed EXE.
   - `Add this EXE to startup`: register the currently running EXE for startup.
   - `Remove startup registration`: remove the app's current-user startup registration.
 - `Exit`: exit the app.
 
 ### Advanced Usage
 
-- `Shift + right-click` the tray icon or floating clock: show `Adjust Windows time (admin)` even when known drift is below 1 second. Use this when you want to manually synchronize Windows time before a time-sensitive reservation, sale, or similar event. It is not shown while an NTP query is in progress.
+- `Shift + right-click` the tray icon or floating clock: show `Adjust Windows time (admin)` even when known drift is below the current notification threshold. Use this when you want to manually synchronize Windows time before a time-sensitive reservation, sale, or similar event. It is not shown while an NTP query is in progress.
 - `Shift + right-click` the tray icon or floating clock: show `Open log folder` for checking NTP and adjustment history.
 
 ## NTP And Time Adjustment
@@ -101,6 +104,7 @@ When the log grows beyond 256KB, it is rotated to `TrayClockTooltip.log.1`. Log 
 - The executable is unsigned, so Windows SmartScreen or security software may show a warning.
 - If you extract a downloaded ZIP with Windows Explorer and the extracted EXE is blocked when starting, open the ZIP file properties before extracting and check `Unblock`.
 - Startup registration uses the current user's Run registry key and does not require administrator rights.
+- Notification threshold persistence also uses the startup command line. No separate settings file or app-specific registry key is created.
 - Startup menu items are disabled when they would not change the current startup state.
 - When updating the installed EXE from another copy, the app asks already running installed/source-path instances to exit before replacing it.
 

@@ -2,7 +2,7 @@
 
 `TrayClockTooltip` is a lightweight Windows tray clock that can use NTP-based app time.
 
-Version: `1.1.2.0`
+Version: `1.2.0.0`
 
 Website:
 https://tokei-ni-kasugai.github.io/TrayClockTooltip/
@@ -30,7 +30,8 @@ If you extract a downloaded ZIP with Windows Explorer and the extracted EXE is b
 - App clock can use the NTP server configured in Windows Time.
 - NTP checks run at startup, logon, and unlock.
 - Manual NTP refresh from the tray menu.
-- Notification when Windows time differs by 1 second or more.
+- Notification when Windows time differs by the current notification threshold or more.
+- Tray menu notification threshold: `1 sec`, `3 sec`, `5 sec`, `7 sec`, `10 sec`, or `Off`.
 - Windows time adjustment with UAC confirmation and fresh NTP re-query.
 - Current-user install and startup registration from the tray menu.
 - NTP query, time adjustment, and install handoff history are written to a small text log.
@@ -56,6 +57,7 @@ If you extract a downloaded ZIP with Windows Explorer and the extracted EXE is b
 
 - `NTP: refresh`: query the Windows Time configured NTP server again.
 - `Adjust Windows time (admin)`: shown when adjustment is available.
+- `Notify threshold`: choose the drift threshold for automatic notifications and normal adjustment availability. `Off` suppresses automatic drift notifications while keeping NTP-based app time active.
 - `Startup` -> `Install for this user`: copy the EXE to `%LOCALAPPDATA%\Programs\TrayClockTooltip\`, register that copy for startup, then launch the installed EXE.
 - `Startup` -> `Add this EXE to startup`: register the currently running EXE for startup.
 - `Startup` -> `Remove startup registration`: remove the app's current-user startup registration.
@@ -63,7 +65,7 @@ If you extract a downloaded ZIP with Windows Explorer and the extracted EXE is b
 
 ### Advanced Usage
 
-- `Shift + right-click` the tray icon or floating clock: show `Adjust Windows time (admin)` even when known drift is below 1 second.
+- `Shift + right-click` the tray icon or floating clock: show `Adjust Windows time (admin)` even when known drift is below the current notification threshold.
 - `Shift + right-click` the tray icon or floating clock: show `Open log folder`.
 
 ## NTP And Time Adjustment
@@ -94,6 +96,7 @@ When the log grows beyond 256KB, it is rotated to `TrayClockTooltip.log.1`.
 
 - Target: Windows 11.
 - Startup registration uses the current user's Run registry key and does not require administrator rights.
+- Notification threshold persistence uses the startup command line. No separate settings file is created.
 - The app is mainly verified with the Windows taskbar at the bottom.
 - Some tray, taskbar, multi-monitor, or DPI behavior may vary by environment.
 
