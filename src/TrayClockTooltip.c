@@ -567,6 +567,16 @@ static void ShowManualRefreshSuccessNotification(void)
     }
 }
 
+static void ShowDriftNotification(int64_t offsetHns)
+{
+    WCHAR body[320];
+    double seconds = (double)llabs(offsetHns) / (double)HNS_PER_SECOND;
+    swprintf(body, ARRAYSIZE(body),
+        L"Windows time differs by %.3f seconds. The app clock is using NTP time.",
+        seconds);
+    ShowNotification(APP_NAME, body, TRUE);
+}
+
 static void ShowNotification(const WCHAR *title, const WCHAR *body, BOOL clickAdjusts)
 {
     HideNotification();
@@ -820,11 +830,17 @@ static BOOL UpdateStartupRegistrationThreshold(void)
 
 static void SetNotifyThreshold(NotifyThreshold threshold)
 {
+    BOOL wasAtThreshold;
+
     if (NotifyThresholdEquals(&g_notifyThreshold, &threshold)) {
         return;
     }
+    wasAtThreshold = g_ntpTimeAvailable && !g_ntpQueryInProgress && IsOffsetAtNotifyThreshold(g_clockOffsetHns);
     g_notifyThreshold = threshold;
     ReevaluateAdjustmentAvailability();
+    if (!wasAtThreshold && g_adjustmentAvailable) {
+        ShowDriftNotification(g_clockOffsetHns);
+    }
     if (!UpdateStartupRegistrationThreshold()) {
         ShowNotification(APP_NAME, L"Could not update startup notification threshold.", FALSE);
     }
@@ -1602,14 +1618,9 @@ static void ApplyNtpResult(const NtpResult *result)
     UpdateClockDisplays();
 
     if (IsOffsetAtNotifyThreshold(result->offsetHns)) {
-        WCHAR body[320];
-        double seconds = (double)llabs(result->offsetHns) / (double)HNS_PER_SECOND;
         SetTrayNtpMenuText(result->message);
         g_adjustmentAvailable = TRUE;
-        swprintf(body, ARRAYSIZE(body),
-            L"Windows time differs by %.3f seconds. The app clock is using NTP time.",
-            seconds);
-        ShowNotification(APP_NAME, body, TRUE);
+        ShowDriftNotification(result->offsetHns);
     } else {
         SetTrayNtpMenuText(NULL);
         g_adjustmentAvailable = FALSE;
