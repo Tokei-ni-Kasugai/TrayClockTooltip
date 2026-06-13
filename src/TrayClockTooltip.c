@@ -537,6 +537,11 @@ static void BuildNtpStatusText(int64_t offsetHns, const WCHAR *source, WCHAR *bu
 
 static void ReevaluateAdjustmentAvailability(void)
 {
+    if (g_ntpQueryInProgress) {
+        SetTrayNtpMenuText(NULL);
+        g_adjustmentAvailable = FALSE;
+        return;
+    }
     if (g_ntpTimeAvailable && IsOffsetAtNotifyThreshold(g_clockOffsetHns)) {
         WCHAR status[320];
         BuildNtpStatusText(g_clockOffsetHns, g_clockSource, status, ARRAYSIZE(status));
@@ -1624,6 +1629,7 @@ static void StartNtpLoad(NtpEvent event, BOOL notifySuccessIfNoDrift)
 
     g_ntpQueryInProgress = TRUE;
     g_notifyNtpSuccessIfNoDrift = notifySuccessIfNoDrift;
+    g_adjustmentAvailable = FALSE;
     SetTrayNtpMenuText(NULL);
     context = (NtpQueryContext *)HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(NtpQueryContext));
     if (!context) {

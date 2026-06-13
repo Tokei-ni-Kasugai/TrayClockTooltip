@@ -58,7 +58,7 @@
 | TM-06 | トレイAdjust表示 | 現在の通知しきい値以上のずれが検出された状態でトレイメニューを開く。 | `Time: ...` の下に `Adjust Windows time (admin)` が表示される。選択すると管理者権限での時刻調整が開始される。 |
 | TM-07 | Adjust非表示 | ずれが現在の通知しきい値未満の状態でトレイメニューを開く。 | 通知しきい値が `Off` でない限り、`Adjust Windows time (admin)` は表示されない。 |
 | TM-08 | 高度な強制Adjust表示 | NTP取得後のずれが現在の通知しきい値未満の状態で、Shiftを押しながらトレイアイコンを右クリックする。 | `NTP: refresh`、`Adjust Windows time (admin)`、`Notify threshold`、`Startup`、`Exit` が表示される。Adjustを選択すると管理者権限での時刻調整が開始される。 |
-| TM-09 | 問い合わせ中は強制Adjust非表示 | NTP問い合わせ中に、Shiftを押しながらトレイアイコンを右クリックする。 | `NTP: refresh` はグレーアウトし、`Adjust Windows time (admin)` は表示されない。 |
+| TM-09 | 問い合わせ中はAdjust非表示 | NTP問い合わせ中に、通常の右クリックとShift右クリックでトレイメニューを開く。 | `NTP: refresh` はグレーアウトし、古い状態に基づく `Adjust Windows time (admin)` は表示されない。問い合わせ中にしきい値を変更しても古いAdjust状態は復活せず、問い合わせ完了後の結果を新しいしきい値で評価する。 |
 | TM-10 | Startupサブメニュー表示 | トレイアイコンを右クリックする。 | トレイメニューに `Startup` サブメニューが表示され、`Install for this user`、`Add this EXE to startup`、`Remove startup registration` が含まれる。 |
 | TM-11 | Startupサブメニューのグレーアウト | 自動起動未登録、現在EXEが登録済み、自動起動登録先EXEが存在しない、自動起動登録先EXEが現在EXEと同一、自動起動登録先EXEが現在EXEと異なる、インストール先EXEが現在EXEと一致、Startup登録先がインストール先EXEではない、の各状態でトレイメニューを開く。 | 未登録時は `Remove startup registration` がグレーアウトする。`Add this EXE to startup` は、自動起動未登録、登録先EXEが存在しない、または登録先EXEが現在EXEと異なる場合だけ有効になる。`Install for this user` は、現在EXEがすでにインストール先EXEであり、インストール先EXEと一致している場合にグレーアウトする。この状態でStartup登録を戻す場合は `Add this EXE to startup` を使う。 |
 | TM-12 | 高度なログフォルダ表示 | Shiftを押しながらトレイアイコンを右クリックし、`Open log folder` を選択する。 | `Open log folder` はShiftメニューでのみ表示され、現在使用するログフォルダを開く。NTP問い合わせ中でも表示される。 |
