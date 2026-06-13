@@ -148,6 +148,8 @@ static WCHAR g_clockSource[256];
 static WCHAR g_notificationTitle[128];
 static WCHAR g_notificationBody[320];
 static NotifyThreshold g_notifyThreshold = { FALSE, 1 };
+static BOOL g_pendingThresholdDriftNotification;
+static int64_t g_pendingThresholdDriftOffsetHns;
 static BOOL g_notificationClickAdjusts;
 static POINT g_dragOffset;
 static POINT g_dragStartCursor;
@@ -577,6 +579,21 @@ static void ShowDriftNotification(int64_t offsetHns)
     ShowNotification(APP_NAME, body, TRUE);
 }
 
+static void QueueDriftNotificationAfterMenu(int64_t offsetHns)
+{
+    g_pendingThresholdDriftNotification = TRUE;
+    g_pendingThresholdDriftOffsetHns = offsetHns;
+}
+
+static void ShowPendingThresholdDriftNotification(void)
+{
+    if (!g_pendingThresholdDriftNotification) {
+        return;
+    }
+    g_pendingThresholdDriftNotification = FALSE;
+    ShowDriftNotification(g_pendingThresholdDriftOffsetHns);
+}
+
 static void ShowNotification(const WCHAR *title, const WCHAR *body, BOOL clickAdjusts)
 {
     HideNotification();
@@ -839,7 +856,11 @@ static void SetNotifyThreshold(NotifyThreshold threshold)
     g_notifyThreshold = threshold;
     ReevaluateAdjustmentAvailability();
     if (!wasAtThreshold && g_adjustmentAvailable) {
-        ShowDriftNotification(g_clockOffsetHns);
+        if (IsMenuActive()) {
+            QueueDriftNotificationAfterMenu(g_clockOffsetHns);
+        } else {
+            ShowDriftNotification(g_clockOffsetHns);
+        }
     }
     if (!UpdateStartupRegistrationThreshold()) {
         ShowNotification(APP_NAME, L"Could not update startup notification threshold.", FALSE);
@@ -2505,6 +2526,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 
     case WM_EXITMENULOOP:
         g_contextMenuOpen = FALSE;
+        ShowPendingThresholdDriftNotification();
         return 0;
 
     case WM_MEASUREITEM:
