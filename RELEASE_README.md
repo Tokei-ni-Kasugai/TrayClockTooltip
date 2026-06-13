@@ -32,6 +32,8 @@ If you extract a downloaded ZIP with Windows Explorer and the extracted EXE is b
 - Manual NTP refresh from the tray menu.
 - Notification when Windows time differs by the current notification threshold or more.
 - Tray menu notification threshold: `1 sec`, `3 sec`, `5 sec`, `7 sec`, `10 sec`, or `Off`.
+- Notification text is Japanese on Japanese Windows UI and English otherwise.
+- First portable startup can show a small confirmation notification when the app is not installed or registered for startup yet.
 - Windows time adjustment with UAC confirmation and fresh NTP re-query.
 - Current-user install and startup registration from the tray menu.
 - NTP query, time adjustment, and install handoff history are written to a small text log.
@@ -58,7 +60,7 @@ If you extract a downloaded ZIP with Windows Explorer and the extracted EXE is b
 - `NTP: refresh`: query the Windows Time configured NTP server again.
 - `Adjust Windows time (admin)`: shown when adjustment is available.
 - `Notify threshold`: choose the drift threshold for automatic notifications and normal adjustment availability. `Off` suppresses automatic drift notifications while keeping NTP-based app time active.
-- `Startup` -> `Install for this user`: copy the EXE to `%LOCALAPPDATA%\Programs\TrayClockTooltip\`, register that copy for startup, then launch the installed EXE.
+- `Startup` -> `Install for this user`: copy the EXE to `%LOCALAPPDATA%\Programs\TrayClockTooltip\`, register that copy for startup, then launch the installed EXE and show a success notification.
 - `Startup` -> `Add this EXE to startup`: register the currently running EXE for startup.
 - `Startup` -> `Remove startup registration`: remove the app's current-user startup registration.
 - `Exit`: exit the app.

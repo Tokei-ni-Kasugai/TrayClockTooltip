@@ -25,6 +25,7 @@ Version: `1.2.0.0`
 - Time adjustment success or adjustment failure is shown with a custom notification. UAC cancellation stays silent.
 - Custom notifications close after 5 seconds.
 - Notification text is Japanese on Japanese Windows UI and English otherwise.
+- First portable startup can show a small confirmation notification when the app is not installed or registered for startup yet.
 - Floating clock and notification colors follow Windows mode.
 - Pinned floating clock shows small side indicators.
 - Date and time follow the Windows user format and are displayed as `date time`.
@@ -56,7 +57,7 @@ Version: `1.2.0.0`
 - `Adjust Windows time (admin)`: shown below the status item when drift reaches the current notification threshold. It is also shown normally when notification threshold is `Off` and NTP time is available. Selecting it starts time adjustment with administrator rights.
 - `Notify threshold`: change the drift threshold used for automatic notifications and normal adjustment availability. If startup registration exists, the selected value is also written to the startup command line.
 - `Startup`:
-  - `Install for this user`: copy the EXE to `%LOCALAPPDATA%\Programs\TrayClockTooltip\`, verify the copied file, copy release README files when present, register that copy for startup, exit the current EXE, and launch the installed EXE.
+  - `Install for this user`: copy the EXE to `%LOCALAPPDATA%\Programs\TrayClockTooltip\`, verify the copied file, copy release README files when present, register that copy for startup, exit the current EXE, launch the installed EXE, and show an install success notification from the installed EXE.
   - `Add this EXE to startup`: register the currently running EXE for startup.
   - `Remove startup registration`: remove the app's current-user startup registration.
 - `Exit`: exit the app.

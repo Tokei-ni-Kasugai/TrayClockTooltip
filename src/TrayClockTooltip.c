@@ -1728,6 +1728,7 @@ static void ApplyNtpResult(const NtpResult *result)
         g_clockSource[0] = L'\0';
         SetTrayNtpMenuText(NULL);
         g_adjustmentAvailable = FALSE;
+        g_notifyPortableStartupIfNoDrift = FALSE;
         UpdateClockDisplays();
         ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_NTP_FAILED), FALSE);
         return;
@@ -1741,6 +1742,7 @@ static void ApplyNtpResult(const NtpResult *result)
     if (IsOffsetAtNotifyThreshold(result->offsetHns)) {
         SetTrayNtpMenuText(result->message);
         g_adjustmentAvailable = TRUE;
+        g_notifyPortableStartupIfNoDrift = FALSE;
         ShowDriftNotification(result->offsetHns);
     } else {
         SetTrayNtpMenuText(NULL);
