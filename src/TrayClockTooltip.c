@@ -129,7 +129,8 @@ typedef enum NotificationTextId {
     NOTIFY_TEXT_STARTUP_REMOVE_FAILED,
     NOTIFY_TEXT_STARTUP_REMOVE_OK,
     NOTIFY_TEXT_NTP_FAILED,
-    NOTIFY_TEXT_OPEN_LOG_FAILED
+    NOTIFY_TEXT_OPEN_LOG_FAILED,
+    NOTIFY_TEXT_PORTABLE_STARTUP_OK
 } NotificationTextId;
 
 typedef struct CloseInstanceContext {
@@ -157,6 +158,8 @@ static BOOL g_ntpTimeAvailable;
 static BOOL g_adjustmentAvailable;
 static BOOL g_ntpQueryInProgress;
 static BOOL g_notifyNtpSuccessIfNoDrift;
+static BOOL g_notifyPortableStartupIfNoDrift;
+static BOOL g_notifyInstallSuccessOnStartup;
 static BOOL g_ownsIcon;
 static BOOL g_oleInitialized;
 static BOOL g_sessionNotificationRegistered;
@@ -628,6 +631,9 @@ static const WCHAR *NotificationText(NotificationTextId id)
     case NOTIFY_TEXT_OPEN_LOG_FAILED:
         return ja ? L"ログフォルダを開けませんでした。"
                   : L"Could not open log folder.";
+    case NOTIFY_TEXT_PORTABLE_STARTUP_OK:
+        return ja ? L"TrayClockTooltipを起動しました。トレイアイコンにマウスを合わせると時計を表示します。"
+                  : L"TrayClockTooltip is running. Hover the tray icon to show the clock.";
     default:
         return APP_NAME;
     }
@@ -1327,6 +1333,21 @@ static BOOL ShouldPromptForInstall(void)
         _wcsicmp(currentPath, installedPath) != 0;
 }
 
+static BOOL ShouldNotifyPortableStartup(void)
+{
+    WCHAR currentPath[MAX_PATH];
+    WCHAR installedPath[MAX_PATH];
+
+    if (!GetCurrentExePath(currentPath, ARRAYSIZE(currentPath)) ||
+        !BuildInstalledExePath(installedPath, ARRAYSIZE(installedPath))) {
+        return FALSE;
+    }
+    if (IsStartupRegistered() || FileExists(installedPath)) {
+        return FALSE;
+    }
+    return _wcsicmp(currentPath, installedPath) != 0;
+}
+
 static BOOL IsWindowProcessPath(HWND hwnd, const WCHAR *path, HANDLE *process)
 {
     DWORD pid = 0;
@@ -1726,6 +1747,9 @@ static void ApplyNtpResult(const NtpResult *result)
         g_adjustmentAvailable = FALSE;
         if (notifySuccessIfNoDrift) {
             ShowManualRefreshSuccessNotification();
+        } else if (result->event == NTP_EVENT_STARTUP && g_notifyPortableStartupIfNoDrift) {
+            g_notifyPortableStartupIfNoDrift = FALSE;
+            ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_PORTABLE_STARTUP_OK), FALSE);
         }
     }
 }
@@ -2501,6 +2525,10 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
             g_sessionNotificationRegistered = TRUE;
         }
         EnsureTrayIcon();
+        if (g_notifyInstallSuccessOnStartup) {
+            g_notifyInstallSuccessOnStartup = FALSE;
+            ShowNotification(APP_NAME, NotificationText(NOTIFY_TEXT_INSTALL_OK), FALSE);
+        }
         ScheduleNextTick();
         StartNtpLoad(NTP_EVENT_STARTUP, FALSE);
         return 0;
@@ -2771,6 +2799,12 @@ static void WaitForParentIfRequested(PWSTR cmdLine)
     if (parent) {
         WaitForSingleObject(parent, INFINITE);
         CloseHandle(parent);
+        WCHAR currentPath[MAX_PATH];
+        WCHAR installedPath[MAX_PATH];
+        g_notifyInstallSuccessOnStartup =
+            GetCurrentExePath(currentPath, ARRAYSIZE(currentPath)) &&
+            BuildInstalledExePath(installedPath, ARRAYSIZE(installedPath)) &&
+            _wcsicmp(currentPath, installedPath) == 0;
     }
 }
 
@@ -2850,6 +2884,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR cmdLine,
     if (!HandleInstallPromptIfRequested(cmdLine)) {
         return 0;
     }
+    g_notifyPortableStartupIfNoDrift = ShouldNotifyPortableStartup();
 
     mutex = CreateMutexW(NULL, TRUE, MUTEX_NAME);
     if (!mutex || GetLastError() == ERROR_ALREADY_EXISTS) {

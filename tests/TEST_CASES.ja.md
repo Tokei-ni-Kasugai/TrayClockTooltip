@@ -69,7 +69,7 @@
 
 | ID | ケース | 手順 | 期待値 |
 | --- | --- | --- | --- |
-| SU-01 | このユーザーにインストール | トレイメニューの `Startup` -> `Install for this user` を選択する。 | 現在のEXEを `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe` にコピーし、コピー結果が現在EXEと一致することを検証する。起動元EXEの隣に配布用READMEが存在する場合はインストール先へコピーする。そのうえで、必要に応じて現在の通知しきい値引数を含めたパスを `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TrayClockTooltip` に書き込み、現在プロセス終了後にインストール先EXEを起動する。UACは表示されない。 |
+| SU-01 | このユーザーにインストール | トレイメニューの `Startup` -> `Install for this user` を選択する。 | 現在のEXEを `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe` にコピーし、コピー結果が現在EXEと一致することを検証する。起動元EXEの隣に配布用READMEが存在する場合はインストール先へコピーする。そのうえで、必要に応じて現在の通知しきい値引数を含めたパスを `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TrayClockTooltip` に書き込み、現在プロセス終了後にインストール先EXEを起動する。インストール先EXEからインストール成功通知を表示する。UACは表示されない。 |
 | SU-02 | 現在のEXEを自動起動登録 | トレイメニューの `Startup` -> `Add this EXE to startup` を選択する。 | 現在のEXEパスと、必要に応じて現在の通知しきい値引数を `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TrayClockTooltip` に書き込み、成功通知を表示する。UACは表示されない。 |
 | SU-03 | 自動起動登録削除 | トレイメニューの `Startup` -> `Remove startup registration` を選択する。 | `HKCU\Software\Microsoft\Windows\CurrentVersion\Run\TrayClockTooltip` を削除し、成功通知を表示する。UACは表示されない。 |
 | SU-04 | 配置済みパスからの再インストール | `%LOCALAPPDATA%\Programs\TrayClockTooltip\TrayClockTooltip.exe` から起動し、`Startup` サブメニューを開く。 | 現在EXEはすでにインストール済みのため、`Install for this user` はグレーアウトする。Startup登録がない場合は `Add this EXE to startup` が有効になり、自動起動登録を戻せる。 |
@@ -120,6 +120,7 @@
 | NT-05 | NTP取得失敗時のメニュー | NTP取得失敗後にメニューを開く。 | トレイメニューは `NTP: refresh` に戻り、`Adjust Windows time (admin)` は表示されない。 |
 | NT-06 | NTP参照先追従 | Windows Timeの `NtpServer` を変更し、トレイメニューの `NTP: refresh` を選択する。 | ハードコードされたサーバではなく、設定されたサーバに問い合わせる。 |
 | NT-07 | ロック解除/ログオン時NTP取得 | アプリを起動したまま、同一Windowsセッションへログオンまたはロック解除する。 | NTP問い合わせを開始する。問い合わせ中の場合は二重に開始しない。 |
+| NT-08 | ポータブル起動時の起動確認通知 | インストール先EXEが存在せず、Startup登録も存在しない状態で、インストール先以外のEXEから起動する。起動時NTP取得が成功し、現在の通知しきい値未満のずれにする。 | TrayClockTooltipが起動中であり、トレイアイコンにマウスを合わせると時計を表示できる旨の通知を表示する。インストール先EXEが存在する、Startup登録済み、NTP失敗、またはしきい値以上のずれがある場合、この起動確認通知は表示しない。 |
 
 ## ずれ通知と時刻調整
 
@@ -199,6 +200,7 @@
 | PASS | ST-01, ST-02, ST-03, HV-01, HV-02, HV-03, HV-04, HV-05, HV-06, HV-07, HV-08, FL-01, FL-01A, FL-02, FL-03, FL-04, FL-05, FL-06, FL-07, FL-08, FL-09, TM-01, TM-01A, TM-02, TM-03, TM-04, TM-05, TM-06, TM-07, TM-08, TM-09, TM-10, TM-11, TM-12, TM-13, TM-14, FM-01, FM-02, FM-03, FM-04, FM-05, FM-06, FM-07, FM-08, FM-09, NT-01, NT-02, NT-03, NT-04, NT-05, NT-06, NT-07, AD-01, AD-01A, AD-02, AD-03, AD-04, AD-05, AD-06, AD-07, AD-08, AD-09, LG-01, LG-02, LG-03, LG-04, LG-05, LG-06, NF-01, NF-02, NF-03, TH-01, TH-02, TH-03, TH-04, TH-05, BS-01, BS-02, BS-03, OQ-01, OQ-02, OQ-06, OQ-07, OQ-08, OQ-09, OQ-10, OQ-11, SU-01, SU-02, SU-03, SU-04, SU-05, SU-06, SU-08, SU-08A, SU-09, SU-10, SU-10A, SU-11, SU-12, SU-13, SU-14 | ユーザー実操作、ソーストレース、ビルド、成果物確認で再実施。実施またはレビューしたケースにNGはありません。 |
 | ソーストレースのみ | SU-15 | 1.2.0のしきい値挙動として追加。Codex側ではソーストレース/ビルドで経路確認済み。トレイ実操作での確認を推奨。 |
 | ソーストレースのみ | NF-04 | 通知ローカライズとして追加。Codex側では言語選択経路をソーストレース/ビルドで確認済み。日本語/非日本語UI環境での実確認を推奨。 |
+| ソーストレースのみ | NT-08, SU-01のインストール成功通知 | 起動確認とインストール引き継ぎ後の通知として追加。Codex側ではソーストレース/ビルドで経路確認済み。トレイ実操作での確認を推奨。 |
 | 廃止 | SU-07 | 現行のインストール引き継ぎ/Startup登録ケースに置き換え。 |
 | 未実施/保留 | OQ-03, OQ-04, OQ-05 | 隠れているインジケーター、下以外のタスクバー、複数モニター/混在DPIなど環境依存のため保留。 |
 
