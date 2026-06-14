@@ -67,7 +67,7 @@
           </div>
           <div class="feature">
             <strong>静かさを選べる</strong>
-            <p>通知しきい値は1/3/5/7/10秒またはOffから選べます。必要以上に知らせず、設定ファイルも増やしません。</p>
+            <p>通知しきい値は1/3/5/7/10秒またはOffから選べます。インストール/自動起動登録時は選択値を引き継ぎ、ポータブル単体では既定値で起動します。</p>
           </div>
           <div class="feature">
             <strong>NTP基準の時計表示</strong>
@@ -107,6 +107,7 @@
           <ul class="checks">
             <li><span>✓</span><div>起動時、ログオン時、ロック解除時にNTP時刻を確認</div></li>
             <li><span>✓</span><div>通知しきい値は1/3/5/7/10秒またはOffから選択</div></li>
+            <li><span>✓</span><div>しきい値の保持は自動起動登録を利用し、専用の設定ファイルは作成しません</div></li>
             <li><span>✓</span><div>しきい値をOff選択でずれ通知を止め、時計と手動調整はそのまま利用可能</div></li>
             <li><span>✓</span><div>調整時はNTP時刻を再取得してからWindows時刻へ適用</div></li>
             <li><span>✓</span><div>時刻調整時のみUACで確認し、管理者権限では常駐しません</div></li>
