@@ -28,8 +28,8 @@ Version: `1.2.0.0`
 - First portable startup can show a small confirmation notification when the app is not installed or registered for startup yet.
 - Floating clock and notification colors follow Windows mode.
 - Pinned floating clock shows small side indicators.
-- Date and time follow the Windows user format and are displayed as `date time`.
-- Seconds are shown even when the Windows time format omits them.
+- Date follows the Windows short date format.
+- Time follows the Windows short time format, with seconds added when omitted.
 
 ## Controls
 

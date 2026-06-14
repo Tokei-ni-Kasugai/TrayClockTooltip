@@ -38,7 +38,7 @@ If you extract a downloaded ZIP with Windows Explorer and the extracted EXE is b
 - Current-user install and startup registration from the tray menu.
 - NTP query, time adjustment, and install handoff history are written to a small text log.
 - Floating clock and notification colors follow Windows mode.
-- Date and time follow the Windows user format, with seconds added when omitted.
+- Date follows the Windows short date format. Time follows the Windows short time format, with seconds added when omitted.
 
 ## Controls
 

@@ -173,13 +173,13 @@ static int64_t g_pendingThresholdDriftOffsetHns;
 static BOOL g_notificationClickAdjusts;
 static POINT g_dragOffset;
 static POINT g_dragStartCursor;
+static SIZE g_dragWindowSize;
 static POINT g_lastTrayHoverPoint;
 static BOOL g_dragging;
 static UINT g_dragButtonMask;
 static BOOL g_popupPinned;
 static BOOL g_popupHoverPreview;
 static BOOL g_popupUserMoved;
-static BOOL g_popupHiddenForTrayMenu;
 static BOOL g_contextMenuOpen;
 static DWORD g_lastTrayMenuTick;
 static UINT g_taskbarCreatedMessage;
@@ -280,7 +280,7 @@ static BOOL FindLastMinuteTokenEnd(const WCHAR *format, size_t *minuteEnd)
     return found;
 }
 
-static BOOL BuildUserTimeFormatWithSeconds(WCHAR *buffer, size_t cch)
+static BOOL BuildShortTimeFormatWithSeconds(WCHAR *buffer, size_t cch)
 {
     WCHAR separator[8];
     WCHAR addition[12];
@@ -288,7 +288,7 @@ static BOOL BuildUserTimeFormatWithSeconds(WCHAR *buffer, size_t cch)
     size_t minuteEnd;
     size_t additionLength;
 
-    if (!GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_STIMEFORMAT,
+    if (!GetLocaleInfoEx(LOCALE_NAME_USER_DEFAULT, LOCALE_SSHORTTIME,
             buffer, (int)cch)) {
         return FALSE;
     }
@@ -328,7 +328,7 @@ static void FormatTimestampFromSystemTime(const SYSTEMTIME *st, WCHAR *buffer, s
         swprintf(datePart, ARRAYSIZE(datePart), L"%04u/%02u/%02u",
             st->wYear, st->wMonth, st->wDay);
     }
-    if (!BuildUserTimeFormatWithSeconds(timeFormat, ARRAYSIZE(timeFormat)) ||
+    if (!BuildShortTimeFormatWithSeconds(timeFormat, ARRAYSIZE(timeFormat)) ||
         !GetTimeFormatEx(LOCALE_NAME_USER_DEFAULT, 0, st, timeFormat,
             timePart, ARRAYSIZE(timePart))) {
         swprintf(timePart, ARRAYSIZE(timePart), L"%02u:%02u:%02u",
@@ -2095,8 +2095,14 @@ static SIZE MeasureTimestamp(HWND hwnd)
 
 static POINT KeepOnScreen(POINT pt, SIZE size)
 {
-    HMONITOR monitor = MonitorFromPoint(pt, MONITOR_DEFAULTTONEAREST);
+    RECT proposed;
+    HMONITOR monitor;
     MONITORINFO mi;
+    proposed.left = pt.x;
+    proposed.top = pt.y;
+    proposed.right = pt.x + size.cx;
+    proposed.bottom = pt.y + size.cy;
+    monitor = MonitorFromRect(&proposed, MONITOR_DEFAULTTONEAREST);
     mi.cbSize = sizeof(mi);
     GetMonitorInfoW(monitor, &mi);
     if (pt.x < mi.rcWork.left) pt.x = mi.rcWork.left;
@@ -2133,6 +2139,31 @@ static POINT GetPopupInitialLocation(SIZE size)
     return KeepOnScreen(location, size);
 }
 
+static void ResizeVisiblePopupToTimestamp(void)
+{
+    RECT rc;
+    POINT location;
+    SIZE size;
+    if (!g_popupWnd || !IsWindowVisible(g_popupWnd)) {
+        return;
+    }
+
+    size = MeasureTimestamp(g_popupWnd);
+    if (g_popupHoverPreview && !g_popupPinned && !g_popupUserMoved) {
+        location = GetPopupInitialLocation(size);
+    } else {
+        GetWindowRect(g_popupWnd, &rc);
+        location.x = rc.left;
+        location.y = rc.top;
+        location = KeepOnScreen(location, size);
+    }
+    SetWindowPos(g_popupWnd, HWND_TOPMOST, location.x, location.y,
+        size.cx, size.cy, SWP_NOACTIVATE);
+    if (g_dragging) {
+        g_dragWindowSize = size;
+    }
+}
+
 static void HidePopup(void)
 {
     if (g_popupWnd) {
@@ -2146,27 +2177,13 @@ static void HidePopup(void)
     KillTimer(g_mainWnd, TIMER_HOVER_PREVIEW);
 }
 
-static void HidePopupForTrayMenu(void)
+static void HideHoverPreviewForTrayMenu(void)
 {
-    g_popupHiddenForTrayMenu = FALSE;
-    if (!g_popupWnd || !IsWindowVisible(g_popupWnd) || g_popupUserMoved) {
+    if (!g_popupWnd || !IsWindowVisible(g_popupWnd) || !g_popupHoverPreview) {
         return;
     }
 
-    if (g_popupPinned) {
-        ShowWindow(g_popupWnd, SW_HIDE);
-        g_popupHiddenForTrayMenu = TRUE;
-    } else {
-        HidePopup();
-    }
-}
-
-static void RestorePopupHiddenForTrayMenu(void)
-{
-    if (g_popupHiddenForTrayMenu && g_popupWnd && g_popupPinned) {
-        ShowWindow(g_popupWnd, SW_SHOWNOACTIVATE);
-    }
-    g_popupHiddenForTrayMenu = FALSE;
+    HidePopup();
 }
 
 static void ShowPopupNearCursor(BOOL pinned)
@@ -2218,12 +2235,16 @@ static void PinHoverPopup(void)
 
 static void BeginPopupDrag(HWND hwnd, LPARAM lParam, UINT buttonMask)
 {
+    RECT rc;
     PinHoverPopup();
     g_dragging = TRUE;
     g_dragButtonMask = buttonMask;
     SetCapture(hwnd);
     g_dragOffset.x = GET_X_LPARAM(lParam);
     g_dragOffset.y = GET_Y_LPARAM(lParam);
+    GetWindowRect(hwnd, &rc);
+    g_dragWindowSize.cx = rc.right - rc.left;
+    g_dragWindowSize.cy = rc.bottom - rc.top;
     GetCursorPos(&g_dragStartCursor);
 }
 
@@ -2235,6 +2256,8 @@ static BOOL EndPopupDrag(UINT buttonMask)
 
     g_dragging = FALSE;
     g_dragButtonMask = 0;
+    g_dragWindowSize.cx = 0;
+    g_dragWindowSize.cy = 0;
     ReleaseCapture();
     return TRUE;
 }
@@ -2338,7 +2361,6 @@ static void ShowTrayMenu(void)
     g_lastTrayMenuTick = GetTickCount();
     GetCursorPos(&pt);
     ShowContextMenu(menu, g_mainWnd, pt);
-    RestorePopupHiddenForTrayMenu();
     DestroyMenu(menu);
 }
 
@@ -2581,7 +2603,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
                 return 0;
             }
             HideNotification();
-            HidePopupForTrayMenu();
+            HideHoverPreviewForTrayMenu();
             ShowTrayMenu();
         }
         return 0;
@@ -2665,6 +2687,7 @@ static LRESULT CALLBACK MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM l
 
     case WM_SETTINGCHANGE:
     case WM_THEMECHANGED:
+        ResizeVisiblePopupToTimestamp();
         InvalidatePopup();
         if (g_notificationWnd) InvalidateRect(g_notificationWnd, NULL, TRUE);
         return 0;
@@ -2697,8 +2720,12 @@ static LRESULT CALLBACK PopupWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
     case WM_MOUSEMOVE:
         if (g_dragging && (wParam & g_dragButtonMask)) {
             POINT pt;
+            POINT location;
             GetCursorPos(&pt);
-            SetWindowPos(hwnd, NULL, pt.x - g_dragOffset.x, pt.y - g_dragOffset.y, 0, 0,
+            location.x = pt.x - g_dragOffset.x;
+            location.y = pt.y - g_dragOffset.y;
+            location = KeepOnScreen(location, g_dragWindowSize);
+            SetWindowPos(hwnd, NULL, location.x, location.y, 0, 0,
                 SWP_NOZORDER | SWP_NOSIZE | SWP_NOACTIVATE);
             if (pt.x != g_dragStartCursor.x || pt.y != g_dragStartCursor.y) {
                 g_popupUserMoved = TRUE;
@@ -2725,6 +2752,8 @@ static LRESULT CALLBACK PopupWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM 
     case WM_CAPTURECHANGED:
         g_dragging = FALSE;
         g_dragButtonMask = 0;
+        g_dragWindowSize.cx = 0;
+        g_dragWindowSize.cy = 0;
         return 0;
     }
     return DefWindowProcW(hwnd, msg, wParam, lParam);
