@@ -269,6 +269,10 @@ h2 {
   text-wrap: pretty;
 }
 
+.checks li:last-child {
+  border-bottom: 0;
+}
+
 .checks span {
   width: 22px;
   height: 22px;
@@ -292,7 +296,6 @@ h2 {
   margin: 0;
   padding: 0;
   list-style: none;
-  border-top: 1px solid var(--line);
 }
 
 .step-list li {
@@ -301,6 +304,10 @@ h2 {
   gap: 14px;
   padding: 18px 0;
   border-bottom: 1px solid var(--line);
+}
+
+.step-list li:last-child {
+  border-bottom: 0;
 }
 
 .step-list span {
