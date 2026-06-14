@@ -2,7 +2,7 @@
 
 `TrayClockTooltip` is a lightweight Windows tray clock that can use NTP-based app time.
 
-Version: `1.2.0.0`
+Version: `1.2.1.0`
 
 Website:
 https://tokei-ni-kasugai.github.io/TrayClockTooltip/

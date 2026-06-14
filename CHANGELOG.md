@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.1 - 2026-06-15
+
+- Changed the floating clock time display to follow the Windows short time format, with seconds added when omitted.
+- Resized and repositioned the floating clock when Windows date/time format settings change while the app is running.
+- Kept the floating clock within the monitor work area when resizing or dragging near screen edges.
+- Fixed tray right-click behavior so a pinned floating clock no longer hides when opening the tray menu.
+- Updated tests and documentation for short time format and pinned tray-menu behavior.
+
 ## 1.2.0 - 2026-06-14
 
 - Added tray-menu notification threshold options: `1 sec`, `3 sec`, `5 sec`, `7 sec`, `10 sec`, and `Off`.
