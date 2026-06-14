@@ -44,6 +44,7 @@ Manual test cases for the current behavior. Do not use debug execution.
 | FL-07 | Close floating clock | Right-click floating clock, choose `Close`. | Floating clock hides. App continues running in tray. |
 | FL-08 | Exit from floating clock | Right-click floating clock, choose `Exit`. | App exits and tray icon disappears. |
 | FL-09 | Hide moved pinned clock from tray | Drag the floating clock to move it, then left-click the tray icon. | Floating clock hides, matching the previous behavior for user-positioned pinned clocks. |
+| FL-10 | Tray menu while clock is pinned | Pin the floating clock at its initial position, then right-click the tray icon. | Tray menu opens, and the pinned floating clock remains visible. |
 
 ## Tray Menu
 
@@ -114,7 +115,7 @@ Manual test cases for the current behavior. Do not use debug execution.
 | ID | Case | Steps | Expected |
 | --- | --- | --- | --- |
 | NT-01 | Startup NTP query | Launch app. | App reads Windows Time `NtpServer` and queries that server over UDP/123 at startup. |
-| NT-02 | App clock uses acquired NTP offset | Launch app with successful NTP acquisition. | Floating clock displays the date and time portions using the Windows user formats, arranged as `date time`, based on Windows time plus acquired offset. Seconds are shown even when the Windows time format omits them. |
+| NT-02 | App clock uses acquired NTP offset | Launch app with successful NTP acquisition. | Floating clock displays the date portion using the Windows short date format and the time portion using the Windows short time format, arranged as `date time`, based on Windows time plus acquired offset. Seconds are shown even when the short time format omits them. |
 | NT-03 | Manual NTP refresh updates app offset | Run tray menu `NTP: refresh` when no drift at or above the current notification threshold is known. | App clock updates using the newly acquired NTP offset. If drift is below the current notification threshold, a success notification is shown. |
 | NT-04 | NTP unavailable notification | Make NTP unavailable, then launch app or choose tray menu `NTP: refresh`. | Custom notification appears saying NTP time could not be obtained and app clock uses Windows system clock. Any previous NTP offset is discarded. |
 | NT-05 | NTP unavailable menu state | Make NTP unavailable, then query NTP. | Tray menu returns to `NTP: refresh`; `Adjust Windows time (admin)` is not shown. |
@@ -180,26 +181,24 @@ Manual test cases for the current behavior. Do not use debug execution.
 | OQ-07 | NTP failure after previous drift | NTP failure resets the tray menu to `NTP: refresh`, discards the previous offset, and hides adjust menu. | This avoids stale adjust actions and stale app-clock offsets, but it also hides previous drift information. Confirm desired behavior. |
 | OQ-08 | Hover preview and right-click tray menu | Right-clicking tray icon hides hover preview before showing tray menu. | This avoids overlap but differs from standard tooltip timing. Confirm preferred behavior. |
 | OQ-09 | Hover preview close timing | Hover preview is checked every 250 ms. | Exact disappearance timing may feel slightly delayed or abrupt depending on user preference. |
-| OQ-10 | Time format | Date and time portions follow the Windows user formats. Overall display is arranged as `date time`. Seconds are shown even when the Windows time format omits them. | Needs confirmation when Windows date/time format or locale differs. |
-| OQ-11 | Width from date/time format | Floating clock width is based on worst-case sample strings for the current Windows date/time format. | Needs confirmation for overseas environments or long AM/PM designators. |
+| OQ-10 | Time format | Date follows the Windows short date format, and time follows the Windows short time format. Overall display is arranged as `date time`. Seconds are shown even when the short time format omits them. | Needs confirmation when Windows date/time format or locale differs. |
+| OQ-11 | Width from date/time format | Floating clock width is based on worst-case sample strings for the current Windows short date/time formats. | Needs confirmation for overseas environments or long AM/PM designators. |
 ## Codex Test Results
 
-Run date: 2026-06-13
+Result updated: 2026-06-15
 
 Scope:
 
 - No debug execution.
 - Build completed with `powershell -ExecutionPolicy Bypass -File .\src\build.ps1`.
 - GUI operation, tray interaction, UAC operation, Windows setting changes, and environment-dependent visual checks were not performed by Codex.
-- Results below include only the latest re-run by build verification, `git diff --check`, source trace review, artifact checks, and test-case consistency review.
+- Results below include only the latest build verification, `git diff --check`, source trace review, artifact checks, test-case consistency review, and user-operation confirmation.
 - Previous Codex result entries were discarded before writing this section.
 
 | Result | IDs | Check |
 | --- | --- | --- |
 | PASS | ST-01, ST-02, ST-03, HV-01, HV-02, HV-03, HV-04, HV-05, HV-06, HV-07, HV-08, FL-01, FL-01A, FL-02, FL-03, FL-04, FL-05, FL-06, FL-07, FL-08, FL-09, TM-01, TM-01A, TM-02, TM-03, TM-04, TM-05, TM-06, TM-07, TM-08, TM-09, TM-10, TM-11, TM-12, TM-13, TM-14, FM-01, FM-02, FM-03, FM-04, FM-05, FM-06, FM-07, FM-08, FM-09, NT-01, NT-02, NT-03, NT-04, NT-05, NT-06, NT-07, AD-01, AD-01A, AD-02, AD-03, AD-04, AD-05, AD-06, AD-07, AD-08, AD-09, LG-01, LG-02, LG-03, LG-04, LG-05, LG-06, NF-01, NF-02, NF-03, TH-01, TH-02, TH-03, TH-04, TH-05, BS-01, BS-02, BS-03, OQ-01, OQ-02, OQ-06, OQ-07, OQ-08, OQ-09, OQ-10, OQ-11, SU-01, SU-02, SU-03, SU-04, SU-05, SU-06, SU-08, SU-08A, SU-09, SU-10, SU-10A, SU-11, SU-12, SU-13, SU-14 | Re-executed by user operation, source trace, build, and artifact review. No NG was found in the cases executed or reviewed. |
-| Source trace only | SU-15 | Added for the 1.2.0 threshold behavior. Codex verified the code path by source trace/build; manual tray operation remains recommended. |
-| Source trace only | NF-04 | Added for notification localization. Codex verified the language-selection path by source trace/build; Japanese and non-Japanese UI environment checks remain recommended. |
-| Source trace only | NT-08, SU-01 install-success notification | Added for startup visibility and install handoff feedback. Codex verified the paths by source trace/build; manual tray operation remains recommended. |
+| PASS | FL-10, SU-01 install-success notification, SU-15, NF-04, NT-08, OQ-10, OQ-11 | Confirmed by user operation. No NG was found. |
 | Retired | SU-07 | Replaced by the current install handoff and startup-registration cases. |
 | Not run / held | OQ-03, OQ-04, OQ-05 | Environment-dependent tray flyout, non-bottom taskbar, multi-monitor, or mixed-DPI behavior remains held for future confirmation. |
 
